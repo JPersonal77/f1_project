@@ -16,7 +16,12 @@ Simplified but season-aware model:
    from a small rookie pool, simulating an academy graduate.
 """
 import random
-from f1sim.data import ACADEMY_FEEDER_TEAMS, F1_PROSPECTS
+from f1sim.data import (
+    ACADEMY_FEEDER_TEAMS,
+    F1_PROSPECTS,
+    TEAM_ACADEMY_PREFERENCES,
+    TEAM_JUNIOR_APPETITE,
+)
 from f1sim.models import Driver
 
 ROOKIE_FIRST_NAMES = ["Enzo", "Mateo", "Kaito", "Theo", "Noah", "Leon", "Rafael", "Milo", "Elio", "Aksel"]
@@ -70,6 +75,40 @@ def _generate_rookie(rng: random.Random, number_pool: set, team_name: str) -> Dr
     )
 
 
+def _build_academy_driver(name: str, profile: dict, rng: random.Random,
+                          number_pool: set) -> Driver:
+    number = rng.choice([n for n in range(2, 100) if n not in number_pool])
+    number_pool.add(number)
+    return Driver(
+        name=name,
+        number=number,
+        nationality=profile["nationality"],
+        pace=profile["pace"],
+        racecraft=profile["racecraft"],
+        consistency=profile["consistency"],
+        wet_skill=profile["wet_skill"],
+        experience=profile["experience"],
+        aggression=profile["aggression"],
+        age=profile["age"],
+        contract_years=rng.randint(2, 3),
+        academy=profile["academy"],
+    )
+
+
+def _academy_candidate(team_name: str, rng: random.Random,
+                       available_prospects: set, number_pool: set):
+    preferred = TEAM_ACADEMY_PREFERENCES.get(team_name, [])
+    candidates = [
+        (name, F1_PROSPECTS[name]) for name in available_prospects
+        if F1_PROSPECTS[name].get("academy") in preferred
+    ]
+    if not candidates or rng.random() >= TEAM_JUNIOR_APPETITE.get(team_name, 0):
+        return None
+    name, profile = max(candidates, key=lambda item: item[1]["f1_potential"])
+    available_prospects.remove(name)
+    return _build_academy_driver(name, profile, rng, number_pool)
+
+
 def run_offseason(teams, rng: random.Random, quiet=False) -> list:
     """Mutates teams' driver rosters in place. Returns a list of news strings."""
     news = []
@@ -77,6 +116,7 @@ def run_offseason(teams, rng: random.Random, quiet=False) -> list:
 
     free_agents = []
     retirements = []
+    available_prospects = set(F1_PROSPECTS)
 
     for team in teams:
         kept = []
@@ -114,12 +154,21 @@ def run_offseason(teams, rng: random.Random, quiet=False) -> list:
             open_slots.append(team)
             team.drivers.append(None)  # placeholder, filled below
 
-    slot_index = 0
-    for team in teams:
+    for team in sorted(teams, key=lambda t: tier_priority.get(t.tier, 3)):
         for i, seat in enumerate(team.drivers):
             if seat is not None:
                 continue
-            if free_agents:
+            academy_driver = _academy_candidate(
+                team.name, rng, available_prospects, used_numbers
+            )
+            if academy_driver:
+                academy_driver.team = team.name
+                team.drivers[i] = academy_driver
+                news.append(
+                    f"{academy_driver.name} joins {team.name} from the "
+                    f"{academy_driver.academy} academy."
+                )
+            elif free_agents:
                 new_driver = free_agents.pop(0)
                 new_driver.team = team.name
                 new_driver.contract_years = rng.randint(1, 3)

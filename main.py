@@ -13,7 +13,7 @@ Run from the f1sim project root (the folder containing this file).
 import argparse
 import random
 
-from f1sim.data import build_2026_grid, build_2026_calendar
+from f1sim.data import academy_policy_report, build_2026_grid, build_2026_calendar
 from f1sim.season import Season
 from f1sim.transfers import run_offseason
 
@@ -24,7 +24,17 @@ def main():
     parser.add_argument("--seed", type=int, default=None, help="Random seed for reproducibility")
     parser.add_argument("--quiet", action="store_true", help="Only print standings and transfer news")
     parser.add_argument("--start-year", type=int, default=2026, help="First season's year")
+    parser.add_argument("--show-academies", action="store_true",
+                        help="Show team academy preferences and junior appetite")
     args = parser.parse_args()
+
+    if args.show_academies:
+        print("--- Academy Preferences ---")
+        for policy in academy_policy_report():
+            print(f"  {policy['team']:<18} academies: {policy['preferred_academies']:<16} "
+                  f"junior appetite: {policy['junior_appetite']}")
+        if args.seasons == 0:
+            return
 
     rng = random.Random(args.seed)
     teams = build_2026_grid()

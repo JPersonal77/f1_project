@@ -92,3 +92,14 @@ class Track:
     overtaking_difficulty: float  # 0 (easy to pass) - 1 (Monaco-hard)
     wet_chance: float             # probability this round is wet
     is_sprint: bool = False
+    turn_count: int = 0
+    circuit_length_km: float = 0.0
+    track_type: str = "permanent"
+    slow_corners: int = 0
+    medium_corners: int = 0
+    high_speed_corners: int = 0
+    long_straights: int = 0
+    downforce_demand: float = 0.5
+    braking_demand: float = 0.5
+    traction_demand: float = 0.5
+    straight_line_demand: float = 0.5

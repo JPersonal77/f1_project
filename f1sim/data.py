@@ -74,6 +74,36 @@ F1_PROSPECTS = {
 }
 
 
+# Track DNA is simulator metadata based on circuit characteristics. The
+# demand values are normalized from 0 (low) to 1 (high), not official ratings.
+TRACK_DNA = {
+    "Bahrain GP": (15, 5.412, "permanent", 5, 7, 3, 3, 0.70, 0.85, 0.75, 0.80),
+    "Saudi Arabian GP": (27, 6.174, "street", 4, 12, 11, 4, 0.65, 0.80, 0.65, 0.90),
+    "Australian GP": (14, 5.278, "street", 5, 6, 3, 2, 0.65, 0.70, 0.70, 0.65),
+    "Japanese GP": (18, 5.807, "permanent", 4, 7, 7, 2, 0.85, 0.75, 0.55, 0.55),
+    "Chinese GP": (16, 5.451, "permanent", 6, 6, 4, 2, 0.65, 0.70, 0.80, 0.65),
+    "Miami GP": (19, 5.412, "street", 8, 7, 4, 2, 0.60, 0.70, 0.80, 0.70),
+    "Emilia Romagna GP": (19, 4.909, "permanent", 7, 7, 5, 1, 0.75, 0.65, 0.75, 0.45),
+    "Monaco GP": (19, 3.337, "street", 12, 6, 1, 0, 0.95, 0.55, 0.95, 0.20),
+    "Canadian GP": (14, 4.361, "semi-permanent", 4, 7, 3, 4, 0.45, 0.95, 0.85, 0.85),
+    "Spanish GP": (14, 4.657, "permanent", 5, 6, 3, 2, 0.70, 0.75, 0.65, 0.60),
+    "Austrian GP": (10, 4.318, "permanent", 3, 4, 3, 3, 0.55, 0.80, 0.85, 0.80),
+    "British GP": (18, 5.891, "permanent", 3, 8, 7, 2, 0.90, 0.65, 0.50, 0.50),
+    "Belgian GP": (19, 7.004, "permanent", 5, 7, 7, 3, 0.75, 0.80, 0.65, 0.90),
+    "Hungarian GP": (14, 4.381, "permanent", 8, 5, 1, 1, 0.90, 0.55, 0.90, 0.30),
+    "Dutch GP": (14, 4.259, "permanent", 5, 6, 3, 1, 0.80, 0.60, 0.75, 0.35),
+    "Italian GP": (11, 5.793, "permanent", 3, 5, 3, 3, 0.35, 0.95, 0.55, 0.95),
+    "Azerbaijan GP": (20, 6.003, "street", 8, 7, 5, 3, 0.55, 0.85, 0.80, 0.90),
+    "Singapore GP": (19, 4.940, "street", 11, 7, 1, 0, 0.85, 0.75, 0.95, 0.25),
+    "US GP (Austin)": (20, 5.513, "permanent", 6, 8, 6, 2, 0.75, 0.75, 0.70, 0.65),
+    "Mexico City GP": (17, 4.304, "permanent", 7, 6, 4, 2, 0.65, 0.70, 0.75, 0.60),
+    "Sao Paulo GP": (15, 4.309, "permanent", 5, 6, 4, 2, 0.65, 0.75, 0.70, 0.70),
+    "Las Vegas GP": (17, 6.201, "street", 7, 6, 4, 3, 0.45, 0.85, 0.65, 0.95),
+    "Qatar GP": (16, 5.419, "permanent", 4, 8, 4, 2, 0.80, 0.65, 0.60, 0.65),
+    "Abu Dhabi GP": (16, 5.281, "permanent", 7, 6, 3, 2, 0.65, 0.70, 0.85, 0.70),
+}
+
+
 
 
 # F1 academy teams and the seats where their juniors are most likely to land.
@@ -86,6 +116,61 @@ ACADEMY_FEEDER_TEAMS = {
     "Alpine": set(),
     "Audi": set(),
 }
+
+# Ordered academy preferences for open seats. Earlier academies are preferred.
+TEAM_ACADEMY_PREFERENCES = {
+    "McLaren": ["McLaren"],
+    "Ferrari": ["Ferrari"],
+    "Red Bull Racing": ["Red Bull Racing"],
+    "Mercedes": ["Mercedes"],
+    "Aston Martin": ["Aston Martin"],
+    "Williams": ["Mercedes"],
+    "Audi": ["Audi"],
+    "Alpine": ["Alpine"],
+    "Haas": ["Ferrari"],
+    "Racing Bulls": ["Red Bull Racing"],
+    "Cadillac": [],
+}
+
+# Probability of promoting a junior instead of signing an available free agent.
+# Lower values represent teams that generally prefer experienced drivers.
+TEAM_JUNIOR_APPETITE = {
+    "McLaren": 0.55,
+    "Ferrari": 0.025,
+    "Red Bull Racing": 0.05,
+    "Mercedes": 0.05,
+    "Aston Martin": 0.65,
+    "Williams": 0.50,
+    "Audi": 0.35,
+    "Alpine": 0.45,
+    "Haas": 0.70,
+    "Racing Bulls": 0.90,
+    "Cadillac": 0.05,
+}
+
+JUNIOR_APPETITE_LABELS = {
+    "very_low": (0.0, 0.20),
+    "low": (0.20, 0.40),
+    "moderate": (0.40, 0.60),
+    "high": (0.60, 0.80),
+    "very_high": (0.80, 1.01),
+}
+
+
+def academy_policy_report():
+    """Return readable team academy preferences for the CLI or other callers."""
+    report = []
+    for team, appetite in TEAM_JUNIOR_APPETITE.items():
+        label = next(name for name, bounds in JUNIOR_APPETITE_LABELS.items()
+                     if bounds[0] <= appetite < bounds[1])
+        academies = ", ".join(TEAM_ACADEMY_PREFERENCES[team]) or "none"
+        report.append({
+            "team": team,
+            "preferred_academies": academies,
+            "junior_appetite": label,
+            "junior_probability": appetite,
+        })
+    return report
 
 PROSPECT_ACADEMIES = {
 
@@ -205,5 +290,29 @@ def build_2026_calendar():
         ("Qatar GP", "Qatar", 57, 0.40, 0.01),
         ("Abu Dhabi GP", "UAE", 58, 0.35, 0.01),
     ]
-    return [Track(name, country, laps, ot, wet, name in sprint_rounds)
-            for name, country, laps, ot, wet in rounds]
+    tracks = []
+    for name, country, laps, ot, wet in rounds:
+        (turn_count, circuit_length_km, track_type, slow_corners,
+         medium_corners, high_speed_corners, long_straights,
+         downforce_demand, braking_demand, traction_demand,
+         straight_line_demand) = TRACK_DNA[name]
+        tracks.append(Track(
+            name=name,
+            country=country,
+            laps=laps,
+            overtaking_difficulty=ot,
+            wet_chance=wet,
+            is_sprint=name in sprint_rounds,
+            turn_count=turn_count,
+            circuit_length_km=circuit_length_km,
+            track_type=track_type,
+            slow_corners=slow_corners,
+            medium_corners=medium_corners,
+            high_speed_corners=high_speed_corners,
+            long_straights=long_straights,
+            downforce_demand=downforce_demand,
+            braking_demand=braking_demand,
+            traction_demand=traction_demand,
+            straight_line_demand=straight_line_demand,
+        ))
+    return tracks
