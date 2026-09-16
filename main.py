@@ -22,6 +22,8 @@ def main():
     parser = argparse.ArgumentParser(description="F1 season simulator")
     parser.add_argument("--seasons", type=int, default=1, help="Number of seasons to simulate")
     parser.add_argument("--seed", type=int, default=None, help="Random seed for reproducibility")
+    parser.add_argument("--randomize", action="store_true",
+                        help="Force a fresh random simulation, ignoring --seed")
     parser.add_argument("--quiet", action="store_true", help="Only print standings and transfer news")
     parser.add_argument("--start-year", type=int, default=2026, help="First season's year")
     parser.add_argument("--round", type=int, help="Simulate one calendar round only (1-24)")
@@ -37,7 +39,7 @@ def main():
         if args.seasons == 0:
             return
 
-    rng = random.Random(args.seed)
+    rng = random.Random(None if args.randomize else args.seed)
     teams = build_2026_grid()
     calendar = build_2026_calendar()
 

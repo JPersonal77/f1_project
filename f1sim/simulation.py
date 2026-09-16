@@ -52,7 +52,8 @@ def _track_adjustment(team, track) -> float:
 
 
 def _session_score(driver, team, wet: bool, rng: random.Random, track) -> float:
-    base = (team.car_performance + _track_adjustment(team, track)) * 0.55
+    base = (team.car_performance + _track_adjustment(team, track)
+            + team.weekend_form) * 0.55
     if wet:
         base += driver.wet_skill * 0.30 + driver.pace * 0.10 + driver.consistency * 0.05
     else:
@@ -85,6 +86,10 @@ def simulate_practice(teams, track, rng: random.Random, session_count=3) -> Prac
                     "laps": rng.randint(14, 28),
                     "wet": wet,
                 })
+        max_laps = max(result["laps"] for result in session)
+        new_max_laps = max(1, int(max_laps * 0.80))
+        for result in session:
+            result["laps"] = min(result["laps"], new_max_laps)
         session.sort(key=lambda result: result["time"])
         for position, result in enumerate(session, start=1):
             result["position"] = position
@@ -115,13 +120,13 @@ def simulate_qualifying(teams, track, rng: random.Random) -> QualifyingResult:
         scored.sort(key=lambda x: x[1], reverse=True)
         return scored
 
-    # Q1: everyone runs, bottom drop to fill grid positions 16-22 (for 22 cars)
+    # Q1: everyone runs, bottom six are eliminated (22 -> 16)
     q1 = timed(all_drivers, "Q1")
-    n_drop_q1 = max(len(q1) - 15, 0)
+    n_drop_q1 = max(len(q1) - 16, 0)
     q1_out = q1[-n_drop_q1:] if n_drop_q1 else []
     q1_through = q1[: len(q1) - n_drop_q1]
 
-    # Q2: bottom drop to fill grid positions 11-15
+    # Q2: bottom six are eliminated (16 -> 10)
     q2_pool = [(d, _team_of(d, teams)) for d, _ in q1_through]
     q2 = timed(q2_pool, "Q2")
     n_drop_q2 = max(len(q2) - 10, 0)
@@ -198,10 +203,10 @@ def simulate_race(teams, track, grid: List[str], rng: random.Random) -> RaceResu
 
         if wet:
             strategy = ["INTERMEDIATE"]
-            stops = 1 if rng.random() < track.pit_stop_probability else 0
+            stops = 1
         else:
             strategy = [track.tyre_selection[0]]
-            stops = 1 if rng.random() < track.pit_stop_probability else 0
+            stops = 1
             if (track.tyre_wear_rate > 0.72
                     and rng.random() < track.tyre_wear_rate - 0.45):
                 stops += 1
@@ -237,10 +242,18 @@ def simulate_race(teams, track, grid: List[str], rng: random.Random) -> RaceResu
         scores[name] = perf + grid_bonus + chaos
 
     classified = sorted(scores.keys(), key=lambda n: scores[n], reverse=True)
-    leader_score = scores[classified[0]] if classified else 0
     for position, name in enumerate(classified):
         if position >= 15 and rng.random() < 0.12:
             laps_completed[name] = max(1, track.laps - 1)
+
+    # A car that is lapped cannot finish fewer laps down than a car ahead.
+    leader_laps = track.laps
+    lowest_laps_ahead = leader_laps
+    for name in classified:
+        lowest_laps_ahead = min(lowest_laps_ahead, laps_completed[name])
+        laps_completed[name] = lowest_laps_ahead
+    leader_score = scores[classified[0]] if classified else 0
+    for position, name in enumerate(classified):
         gap = 0.0 if position == 0 else (classified[position - 1] and rng.uniform(0.4, 4.5))
         if position:
             race_times[name] = race_times.get(classified[position - 1], base_race_time) + gap
@@ -271,8 +284,6 @@ def award_points(race: RaceResult, teams) -> Dict[str, float]:
     for pos, name in enumerate(race.classified, start=1):
         d, t = driver_lookup[name]
         pts = POINTS.get(pos, 0)
-        if name == race.fastest_lap and pos <= 10:
-            pts += 1
         d.season_points += pts
         d.career_points += pts
         t.season_points += pts

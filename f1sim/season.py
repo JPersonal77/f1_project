@@ -32,6 +32,27 @@ class Season:
             print(*args)
 
     @staticmethod
+    def _position_change(race, name):
+        starting_position = race.grid.index(name) + 1
+        finishing_position = race.classified.index(name) + 1
+        return starting_position - finishing_position
+
+    @staticmethod
+    def _position_marker(change):
+        if change > 0:
+            marker = f"\033[32m↑{change}\033[0m"
+        if change < 0:
+            marker = f"\033[31m↓{abs(change)}\033[0m"
+        if change == 0:
+            marker = "-"
+        visible_length = 1 if change == 0 else len(str(abs(change))) + 1
+        return marker + " " * (4 - visible_length)
+
+    @staticmethod
+    def _pole_text(text):
+        return f"\033[35m{text}\033[0m"
+
+    @staticmethod
     def _tyre_labels(track, wet=False):
         if wet:
             return "I"
@@ -42,7 +63,10 @@ class Season:
 
     @staticmethod
     def _time(seconds):
-        minutes, remainder = divmod(seconds, 60)
+        hours, remainder = divmod(seconds, 3600)
+        minutes, remainder = divmod(remainder, 60)
+        if hours:
+            return f"{int(hours)}:{int(minutes):02d}:{remainder:06.3f}"
         return f"{int(minutes)}:{remainder:06.3f}"
 
     @staticmethod
@@ -52,34 +76,93 @@ class Season:
             return f"+{int(minutes):02d}:{remainder:06.3f}"
         return f"+{remainder:.3f}"
 
+    @staticmethod
+    def _qualifying_delta(seconds):
+        return f"+{max(0.0, seconds):.3f}s"
+
+    @staticmethod
+    def _strategy_labels(strategy, track):
+        labels = []
+        for compound in strategy:
+            if compound in ("INTERMEDIATE", "WET"):
+                labels.append("I" if compound == "INTERMEDIATE" else "W")
+            elif compound in track.tyre_selection:
+                labels.append("SMH"[track.tyre_selection.index(compound)])
+            else:
+                labels.append(compound)
+        return "-".join(labels)
+
+    @staticmethod
+    def _driver_initials(name):
+        surname = name.split()[-1]
+        return surname[:3].upper()
+
+    def _print_starting_grid(self, quali):
+        self._p("\nStarting grid:")
+        for row in range(11):
+            left_position = row * 2 + 1
+            right_position = left_position + 1
+            left_name = quali.grid[left_position - 1]
+            right_name = quali.grid[right_position - 1]
+            left = f"| P{left_position:02d} {self._driver_initials(left_name):^3} |"
+            right = f"| P{right_position:02d} {self._driver_initials(right_name):^3} |"
+            offset = "      " if row % 2 else ""
+            print(f"  {offset}+---------+       +---------+")
+            print(f"  {offset}{left}       {right}")
+        print("  +---------+       +---------+")
+
     def _print_practice(self, practice):
         for number, session in enumerate(practice.sessions, start=1):
             self._p(f"\nPractice {number}:")
+            best_time = session[0]["time"]
             for result in session:
+                display_time = (self._time(best_time) if result["position"] == 1
+                                else self._qualifying_delta(result["time"] - best_time))
                 print(f"  P{result['position']:2d}  {result['name']:<22} "
-                      f"{self._time(result['time'])}  {result['laps']:2d} laps")
+                      f"{display_time:<10}  {result['laps']:2d} laps")
 
     def _print_qualifying(self, quali, title="Qualifying"):
         session_name = "SQ" if title == "Sprint Qualifying" else "Q1"
         self._p(f"\n{title} ({'WET' if quali.wet else 'Dry'}):")
         if title == "Sprint Qualifying":
-            names = sorted(quali.session_times[session_name],
-                           key=quali.session_times[session_name].get)
+            times = quali.session_times[session_name]
+            names = sorted(times, key=times.get)
+            pole_time = times[names[0]]
             for position, name in enumerate(names, start=1):
-                print(f"  P{position:2d}  {name:<22} "
-                      f"{self._time(quali.session_times[session_name][name])}")
+                position_text = self._pole_text(f"P{position:2d}") if position == 1 else f"P{position:2d}"
+                print(f"  {position_text}  {name:<22} "
+                      f"{self._time(times[name])} {self._qualifying_delta(times[name] - pole_time)}")
             return
-        for phase, cutoff in (("Q1", 15), ("Q2", 10), ("Q3", 10)):
-            names = sorted(quali.session_times[phase],
-                           key=quali.session_times[phase].get)
-            for position, name in enumerate(names[:cutoff], start=1):
-                print(f"  {phase} P{position:2d} {name:<22} "
-                      f"{self._time(quali.session_times[phase][name])}")
-            if phase != "Q3":
-                print(f"  ------{phase.lower()} eliminated------")
-                for name in names[cutoff:]:
-                    print(f"  {phase} OUT {name:<18} "
-                          f"{self._time(quali.session_times[phase][name])}")
+
+        q1_times = quali.session_times["Q1"]
+        q2_times = quali.session_times["Q2"]
+        q3_times = quali.session_times["Q3"]
+        q3_names = sorted(q3_times, key=q3_times.get)
+        q2_names = sorted(quali.eliminated_in_q2, key=q2_times.get)
+        q1_names = sorted(quali.eliminated_in_q1, key=q1_times.get)
+        pole_time = q3_times[q3_names[0]]
+        position = 1
+        previous_gap = 0.0
+        for name in q3_names:
+            raw_gap = q3_times[name] - pole_time
+            display_time = (self._time(q3_times[name]) if position == 1
+                        else self._qualifying_delta(max(raw_gap, previous_gap + 0.001)))
+            previous_gap = max(raw_gap, previous_gap + 0.001)
+            position_text = self._pole_text(f"P{position:2d}") if position == 1 else f"P{position:2d}"
+            print(f"  {position_text}  {name:<22} {display_time}")
+            position += 1
+        print("  ----------------Q2----------------")
+        for name in q2_names:
+            previous_gap = max(q2_times[name] - pole_time, previous_gap + 0.001)
+            print(f"  P{position:2d}  {name:<22} "
+                f"{self._qualifying_delta(previous_gap)}")
+            position += 1
+        print("  ----------------Q1----------------")
+        for name in q1_names:
+            previous_gap = max(q1_times[name] - pole_time, previous_gap + 0.001)
+            print(f"  P{position:2d}  {name:<22} "
+                f"{self._qualifying_delta(previous_gap)}")
+            position += 1
 
     def _print_race(self, race, earned, title="Race"):
         cond = "WET" if race.wet else "Dry"
@@ -93,7 +176,12 @@ class Season:
                 display_time = f"+{laps_down} lap" + ("s" if laps_down != 1 else "")
             else:
                 display_time = self._gap(race.race_times[name] - winner_time)
-            print(f"  P{position:2d}  {name:<22} {display_time:<14} "
+            fastest_marker = " (F)" if name == race.fastest_lap else ""
+            strategy = self._strategy_labels(race.tyre_strategy[name], self._active_track)
+            change = self._position_change(race, name)
+            marker = self._position_marker(change)
+            print(f"  P{position:2d}  {name + fastest_marker:<27} {marker} "
+                f"{strategy:<7} {display_time:<14} "
                   f"{race.laps_completed[name]:2d} laps +{earned.get(name, 0):.0f} pts")
         for name in race.dnfs:
             laps_down = max(0, max(race.laps_completed.values()) - race.laps_completed[name])
@@ -101,16 +189,22 @@ class Season:
         total_stops = sum(race.pit_stops.values())
         print(f"  Pit stops: {total_stops} total; tyres: {self._tyre_labels(self._active_track, race.wet)}; "
               f"pit lane transit: {self._active_track.pit_lane_time_seconds:.1f}s")
-        print("  Fastest laps:")
-        for name in race.grid:
-            print(f"    {name:<22} {self._time(race.fastest_lap_times[name])}")
-        print(f"  Overall fastest lap: {race.fastest_lap} "
-              f"{self._time(race.fastest_lap_times[race.fastest_lap])}")
+        overtakes = sorted(
+            ((self._position_change(race, name), name) for name in race.classified),
+            reverse=True,
+        )
+        print("  Most overtakes:")
+        for change, name in overtakes[:5]:
+            if change <= 0:
+                break
+            print(f"    {name:<22} {self._position_marker(change)} positions")
 
     def run_weekend(self, round_no: int, track):
         self._p(f"\n=== Round {round_no}: {track.name} ({track.country}) ===")
 
         self._active_track = track
+        for team in self.teams:
+            team.weekend_form = self.rng.gauss(0.0, 2.0)
         practice = sim.simulate_practice(
             self.teams, track, self.rng, session_count=1 if track.is_sprint else 3
         )
@@ -131,6 +225,7 @@ class Season:
         quali = sim.simulate_qualifying(self.teams, track, self.rng)
         if not self.quiet:
             self._print_qualifying(quali)
+            self._print_starting_grid(quali)
 
         race = sim.simulate_race(self.teams, track, quali.grid, self.rng)
         earned = sim.award_points(race, self.teams)

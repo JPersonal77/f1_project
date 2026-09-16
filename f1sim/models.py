@@ -75,6 +75,7 @@ class Team:
     pit_stop_average_seconds: float = 4.05
     reference_rank: int = 0      # external 2026 constructor-results reference
     reference_points: int = 0
+    weekend_form: float = 0.0
     aero_efficiency: int = 50
     low_speed_performance: int = 50
     high_speed_performance: int = 50

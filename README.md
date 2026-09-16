@@ -13,6 +13,7 @@ python3 main.py                       # 1 season, full race-by-race detail
 python3 main.py --seasons 5           # 5 seasons, drivers move teams between them
 python3 main.py --seasons 10 --quiet  # only standings + transfer news each year
 python3 main.py --seed 42             # reproducible results
+python3 main.py --randomize           # force a fresh random result
 python3 main.py --start-year 2026 --seasons 3
 python3 main.py --round 16 --seed 42 # simulate only Round 16 (Italy)
 ```
@@ -43,8 +44,8 @@ f1sim/
 - **Race:** each grid slot gets a performance score (pace + racecraft +
   a grid-position advantage that's bigger at hard-to-overtake tracks like
   Monaco) plus a DNF roll driven by team reliability and driver
-  aggression-vs-consistency. Standard 25-18-15-...-1 points + fastest lap
-  point for a top-10 finisher.
+  aggression-vs-consistency. Standard 25-18-15-...-1 points; fastest lap is
+  displayed but awards no championship bonus.
 - **Transfers (`transfers.py`, runs between seasons):** contracts count
   down each year; out-of-contract drivers become free agents; a driver who
   badly underperforms a teammate can be dropped early; veterans past 39
