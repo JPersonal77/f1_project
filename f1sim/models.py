@@ -64,11 +64,14 @@ class Driver:
 class Team:
     name: str
     full_name: str
-    car_performance: int   # 0-100, baseline chassis+engine pace
+    car_performance: int   # 0-100, this team's current-year full car package
     reliability: int       # 0-100, higher = fewer mechanical DNFs
     pit_crew: int          # 0-100, affects pit stop time loss
     tier: str              # "front", "midfield", "back" - used by transfer market
     drivers: list = field(default_factory=list)  # list[Driver]
+    engine: str = ""
+    engine_performance: int = 0  # 0-100, supplier-level power-unit rating
+    engine_reliability: int = 0  # 0-100, supplier-level power-unit reliability
 
     season_points: float = 0.0
     season_wins: int = 0
