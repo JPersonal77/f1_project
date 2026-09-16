@@ -24,8 +24,35 @@ def _team_of(driver, teams):
     return None
 
 
-def _session_score(driver, team, wet: bool, rng: random.Random) -> float:
-    base = team.car_performance * 0.55
+def _track_adjustment(team, track) -> float:
+    """Return a small track-specific package adjustment around zero."""
+    turn_total = max(track.turn_count, 1)
+    slow_share = track.slow_corners / turn_total
+    high_share = track.high_speed_corners / turn_total
+    engine_straight_speed = (team.straight_line_speed * 0.55
+                             + team.engine_performance * 0.45)
+    suitability = (
+        team.aero_efficiency * track.downforce_demand * 0.28
+        + team.low_speed_performance * slow_share * 0.16
+        + team.high_speed_performance * high_share * 0.16
+        + team.traction * track.traction_demand * 0.16
+        + team.braking * track.braking_demand * 0.12
+        + engine_straight_speed * track.straight_line_demand * 0.12
+    )
+    demand_total = (
+        track.downforce_demand * 0.28
+        + slow_share * 0.16
+        + high_share * 0.16
+        + track.traction_demand * 0.16
+        + track.braking_demand * 0.12
+        + track.straight_line_demand * 0.12
+    )
+    adjustment = suitability / demand_total - 80
+    return max(-4.0, min(4.0, adjustment * 0.12))
+
+
+def _session_score(driver, team, wet: bool, rng: random.Random, track) -> float:
+    base = (team.car_performance + _track_adjustment(team, track)) * 0.55
     if wet:
         base += driver.wet_skill * 0.30 + driver.pace * 0.10 + driver.consistency * 0.05
     else:
@@ -34,15 +61,35 @@ def _session_score(driver, team, wet: bool, rng: random.Random) -> float:
     return base + noise
 
 
-def simulate_practice(teams, track, rng: random.Random) -> Dict[str, float]:
-    """Returns a dict of driver_name -> best practice score (flavour/logging only)."""
-    wet = rng.random() < track.wet_chance * 0.5  # practice is rarely fully wet
-    results = {}
-    for team in teams:
-        for d in team.drivers:
-            best = max(_session_score(d, team, wet, rng) for _ in range(3))  # FP1-3
-            results[d.name] = best
-    return results
+def _lap_time(score: float, track, rng: random.Random) -> float:
+    base = 65.0 + track.circuit_length_km * 7.0
+    return max(55.0, base - score * 0.12 + rng.gauss(0, 0.08))
+
+
+@dataclass
+class PracticeResult:
+    sessions: List[List[dict]]
+
+
+def simulate_practice(teams, track, rng: random.Random, session_count=3) -> PracticeResult:
+    sessions = []
+    for _ in range(session_count):
+        wet = rng.random() < track.wet_chance * 0.5
+        session = []
+        for team in teams:
+            for driver in team.drivers:
+                score = max(_session_score(driver, team, wet, rng, track) for _ in range(3))
+                session.append({
+                    "name": driver.name,
+                    "time": _lap_time(score, track, rng),
+                    "laps": rng.randint(14, 28),
+                    "wet": wet,
+                })
+        session.sort(key=lambda result: result["time"])
+        for position, result in enumerate(session, start=1):
+            result["position"] = position
+        sessions.append(session)
+    return PracticeResult(sessions=sessions)
 
 
 @dataclass
@@ -52,33 +99,38 @@ class QualifyingResult:
     eliminated_in_q1: List[str]
     eliminated_in_q2: List[str]
     wet: bool
+    session_times: Dict[str, Dict[str, float]]
 
 
 def simulate_qualifying(teams, track, rng: random.Random) -> QualifyingResult:
     wet = rng.random() < track.wet_chance
     all_drivers = [(d, _team_of(d, teams)) for t in teams for d in t.drivers]
 
-    def timed(pool):
-        scored = [(d, _session_score(d, t, wet, rng)) for d, t in pool]
+    session_times = {"Q1": {}, "Q2": {}, "Q3": {}}
+
+    def timed(pool, session_name):
+        scored = [(d, _session_score(d, t, wet, rng, track)) for d, t in pool]
+        for driver, score in scored:
+            session_times[session_name][driver.name] = _lap_time(score, track, rng)
         scored.sort(key=lambda x: x[1], reverse=True)
         return scored
 
     # Q1: everyone runs, bottom drop to fill grid positions 16-22 (for 22 cars)
-    q1 = timed(all_drivers)
+    q1 = timed(all_drivers, "Q1")
     n_drop_q1 = max(len(q1) - 15, 0)
     q1_out = q1[-n_drop_q1:] if n_drop_q1 else []
     q1_through = q1[: len(q1) - n_drop_q1]
 
     # Q2: bottom drop to fill grid positions 11-15
     q2_pool = [(d, _team_of(d, teams)) for d, _ in q1_through]
-    q2 = timed(q2_pool)
+    q2 = timed(q2_pool, "Q2")
     n_drop_q2 = max(len(q2) - 10, 0)
     q2_out = q2[-n_drop_q2:] if n_drop_q2 else []
     q2_through = q2[: len(q2) - n_drop_q2]
 
     # Q3: top 10 fight for pole
     q3_pool = [(d, _team_of(d, teams)) for d, _ in q2_through]
-    q3 = timed(q3_pool)
+    q3 = timed(q3_pool, "Q3")
 
     grid = [d.name for d, _ in q3] + [d.name for d, _ in reversed(q2_out)] + [d.name for d, _ in reversed(q1_out)]
     return QualifyingResult(
@@ -87,6 +139,7 @@ def simulate_qualifying(teams, track, rng: random.Random) -> QualifyingResult:
         eliminated_in_q1=[d.name for d, _ in q1_out],
         eliminated_in_q2=[d.name for d, _ in q2_out],
         wet=wet,
+        session_times=session_times,
     )
 
 
@@ -94,9 +147,12 @@ def simulate_sprint_qualifying(teams, track, rng: random.Random) -> QualifyingRe
     """Runs one timed session for the sprint grid instead of Q1/Q2/Q3."""
     wet = rng.random() < track.wet_chance
     scored = []
+    session_times = {"SQ": {}}
     for team in teams:
         for driver in team.drivers:
-            scored.append((driver, _session_score(driver, team, wet, rng)))
+            score = _session_score(driver, team, wet, rng, track)
+            scored.append((driver, score))
+            session_times["SQ"][driver.name] = _lap_time(score, track, rng)
     scored.sort(key=lambda item: item[1], reverse=True)
     grid = [driver.name for driver, _ in scored]
     return QualifyingResult(
@@ -105,6 +161,7 @@ def simulate_sprint_qualifying(teams, track, rng: random.Random) -> QualifyingRe
         eliminated_in_q1=[],
         eliminated_in_q2=[],
         wet=wet,
+        session_times=session_times,
     )
 
 
@@ -115,6 +172,12 @@ class RaceResult:
     fastest_lap: str
     wet: bool
     grid: List[str]
+    pit_stops: Dict[str, int]
+    tyre_strategy: Dict[str, List[str]]
+    pit_lane_time: Dict[str, float]
+    race_times: Dict[str, float]
+    laps_completed: Dict[str, int]
+    fastest_lap_times: Dict[str, float]
 
 
 def simulate_race(teams, track, grid: List[str], rng: random.Random) -> RaceResult:
@@ -123,8 +186,34 @@ def simulate_race(teams, track, grid: List[str], rng: random.Random) -> RaceResu
 
     dnfs = []
     scores = {}
+    pit_stops = {}
+    tyre_strategy = {}
+    pit_lane_time = {}
+    race_times = {}
+    laps_completed = {}
+    fastest_lap_times = {}
+    base_race_time = track.laps * (65.0 + track.circuit_length_km * 7.0)
     for pos, name in enumerate(grid, start=1):
         d, t = driver_lookup[name]
+
+        if wet:
+            strategy = ["INTERMEDIATE"]
+            stops = 1 if rng.random() < track.pit_stop_probability else 0
+        else:
+            strategy = [track.tyre_selection[0]]
+            stops = 1 if rng.random() < track.pit_stop_probability else 0
+            if (track.tyre_wear_rate > 0.72
+                    and rng.random() < track.tyre_wear_rate - 0.45):
+                stops += 1
+            for stop in range(stops):
+                strategy.append(track.tyre_selection[(stop + 1) % len(track.tyre_selection)])
+        pit_stops[name] = stops
+        tyre_strategy[name] = strategy
+        pit_lane_time[name] = stops * (track.pit_lane_time_seconds + t.pit_stop_average_seconds)
+        laps_completed[name] = track.laps
+        fastest_lap_times[name] = _lap_time(
+            _session_score(d, t, wet, rng, track), track, rng
+        )
 
         # Mechanical DNF chance
         dnf_chance = (100 - t.reliability) * 0.0028
@@ -135,9 +224,12 @@ def simulate_race(teams, track, grid: List[str], rng: random.Random) -> RaceResu
 
         if rng.random() < dnf_chance:
             dnfs.append(name)
+            laps_completed[name] = rng.randint(max(1, track.laps // 4), max(1, track.laps - 1))
+            race_times[name] = laps_completed[name] * (65.0 + track.circuit_length_km * 7.0)
             continue
 
-        perf = _session_score(d, t, wet, rng) + d.racecraft * 0.20
+        perf = (_session_score(d, t, wet, rng, track) + d.racecraft * 0.20
+            - pit_lane_time[name] * 0.12)
         # Grid position advantage: harder to overtake tracks reward qualifying more
         grid_bonus = (len(grid) - pos) * (1.4 + track.overtaking_difficulty * 2.2)
         # A touch of race-day chaos (strategy, safety cars, etc.)
@@ -145,9 +237,30 @@ def simulate_race(teams, track, grid: List[str], rng: random.Random) -> RaceResu
         scores[name] = perf + grid_bonus + chaos
 
     classified = sorted(scores.keys(), key=lambda n: scores[n], reverse=True)
+    leader_score = scores[classified[0]] if classified else 0
+    for position, name in enumerate(classified):
+        if position >= 15 and rng.random() < 0.12:
+            laps_completed[name] = max(1, track.laps - 1)
+        gap = 0.0 if position == 0 else (classified[position - 1] and rng.uniform(0.4, 4.5))
+        if position:
+            race_times[name] = race_times.get(classified[position - 1], base_race_time) + gap
+        else:
+            race_times[name] = base_race_time + pit_lane_time[name] + rng.uniform(-3, 3)
     fastest_lap = max(scores.keys(), key=lambda n: scores[n] + rng.gauss(0, 5)) if scores else ""
 
-    return RaceResult(classified=classified, dnfs=dnfs, fastest_lap=fastest_lap, wet=wet, grid=grid)
+    return RaceResult(
+        classified=classified,
+        dnfs=dnfs,
+        fastest_lap=fastest_lap,
+        wet=wet,
+        grid=grid,
+        pit_stops=pit_stops,
+        tyre_strategy=tyre_strategy,
+        pit_lane_time=pit_lane_time,
+        race_times=race_times,
+        laps_completed=laps_completed,
+        fastest_lap_times=fastest_lap_times,
+    )
 
 
 def award_points(race: RaceResult, teams) -> Dict[str, float]:

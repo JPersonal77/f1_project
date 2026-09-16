@@ -72,6 +72,15 @@ class Team:
     engine: str = ""
     engine_performance: int = 0  # 0-100, supplier-level power-unit rating
     engine_reliability: int = 0  # 0-100, supplier-level power-unit reliability
+    pit_stop_average_seconds: float = 4.05
+    reference_rank: int = 0      # external 2026 constructor-results reference
+    reference_points: int = 0
+    aero_efficiency: int = 50
+    low_speed_performance: int = 50
+    high_speed_performance: int = 50
+    traction: int = 50
+    braking: int = 50
+    straight_line_speed: int = 50
 
     season_points: float = 0.0
     season_wins: int = 0
@@ -106,3 +115,7 @@ class Track:
     braking_demand: float = 0.5
     traction_demand: float = 0.5
     straight_line_demand: float = 0.5
+    tyre_selection: tuple = ("C2", "C3", "C4")
+    tyre_wear_rate: float = 0.5
+    pit_lane_time_seconds: float = 22.0
+    pit_stop_probability: float = 0.65

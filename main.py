@@ -24,6 +24,7 @@ def main():
     parser.add_argument("--seed", type=int, default=None, help="Random seed for reproducibility")
     parser.add_argument("--quiet", action="store_true", help="Only print standings and transfer news")
     parser.add_argument("--start-year", type=int, default=2026, help="First season's year")
+    parser.add_argument("--round", type=int, help="Simulate one calendar round only (1-24)")
     parser.add_argument("--show-academies", action="store_true",
                         help="Show team academy preferences and junior appetite")
     args = parser.parse_args()
@@ -44,7 +45,11 @@ def main():
         year = args.start_year + i
         season_seed = rng.randint(0, 10**9)
         season = Season(year, teams, calendar, seed=season_seed, quiet=args.quiet)
-        season.run()
+        if args.round is None:
+            season.run()
+        else:
+            season.run_round(args.round)
+            break
 
         if i < args.seasons - 1:
             run_offseason(teams, rng, quiet=args.quiet)

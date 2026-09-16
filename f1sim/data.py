@@ -15,6 +15,20 @@ ENGINE_SPECS = {
     "Audi": {"performance": 82, "reliability": 82},
 }
 
+PIT_STOP_AVERAGES_2026 = {
+    "Mercedes": 3.13,
+    "Ferrari": 3.22,
+    "McLaren": 4.19,
+    "Red Bull Racing": 3.70,
+    "Racing Bulls": 2.88,
+    "Alpine": 3.36,
+    "Haas": 5.76,
+    "Audi": 3.65,
+    "Williams": 4.81,
+    "Aston Martin": 5.11,
+    "Cadillac": 4.42,
+}
+
 
 TEAM_ENGINES = {
     "McLaren": "Mercedes",
@@ -28,6 +42,66 @@ TEAM_ENGINES = {
     "Haas": "Ferrari",
     "Racing Bulls": "Red Bull Ford",
     "Cadillac": "Ferrari",
+}
+
+# Cross-reference from the 2026 constructor standings on the supplied results
+# page. These points are external reference data, separate from this sim's
+# generated season_points.
+TEAM_RESULTS_2026 = {
+    "Mercedes": {"rank": 1, "points": 503, "car_performance": 95},
+    "Ferrari": {"rank": 2, "points": 358, "car_performance": 92},
+    "McLaren": {"rank": 3, "points": 306, "car_performance": 91},
+    "Red Bull Racing": {"rank": 4, "points": 230, "car_performance": 88},
+    "Racing Bulls": {"rank": 5, "points": 77, "car_performance": 81},
+    "Alpine": {"rank": 6, "points": 68, "car_performance": 79},
+    "Haas": {"rank": 7, "points": 21, "car_performance": 75},
+    "Audi": {"rank": 8, "points": 17, "car_performance": 74},
+    "Williams": {"rank": 9, "points": 11, "car_performance": 72},
+    "Aston Martin": {"rank": 10, "points": 3, "car_performance": 69},
+    "Cadillac": {"rank": 11, "points": 0, "car_performance": 66},
+}
+
+TEAM_CAR_PROFILES_2026 = {
+    "Mercedes": {"aero_efficiency": 93, "low_speed_performance": 86, "high_speed_performance": 94, "traction": 89, "braking": 91, "straight_line_speed": 87},
+    "Ferrari": {"aero_efficiency": 90, "low_speed_performance": 89, "high_speed_performance": 87, "traction": 86, "braking": 91, "straight_line_speed": 88},
+    "McLaren": {"aero_efficiency": 94, "low_speed_performance": 90, "high_speed_performance": 93, "traction": 88, "braking": 89, "straight_line_speed": 86},
+    "Red Bull Racing": {"aero_efficiency": 96, "low_speed_performance": 94, "high_speed_performance": 95, "traction": 92, "braking": 93, "straight_line_speed": 82},
+    "Racing Bulls": {"aero_efficiency": 82, "low_speed_performance": 79, "high_speed_performance": 80, "traction": 77, "braking": 79, "straight_line_speed": 82},
+    "Alpine": {"aero_efficiency": 77, "low_speed_performance": 75, "high_speed_performance": 78, "traction": 74, "braking": 78, "straight_line_speed": 82},
+    "Haas": {"aero_efficiency": 76, "low_speed_performance": 73, "high_speed_performance": 76, "traction": 72, "braking": 79, "straight_line_speed": 80},
+    "Audi": {"aero_efficiency": 74, "low_speed_performance": 76, "high_speed_performance": 73, "traction": 71, "braking": 75, "straight_line_speed": 75},
+    "Williams": {"aero_efficiency": 70, "low_speed_performance": 68, "high_speed_performance": 72, "traction": 69, "braking": 73, "straight_line_speed": 88},
+    "Aston Martin": {"aero_efficiency": 69, "low_speed_performance": 71, "high_speed_performance": 68, "traction": 70, "braking": 72, "straight_line_speed": 79},
+    "Cadillac": {"aero_efficiency": 65, "low_speed_performance": 64, "high_speed_performance": 63, "traction": 62, "braking": 68, "straight_line_speed": 76},
+}
+
+# Dry-weather compounds selected for each weekend, from the C0-C6 range.
+# Wear and pit-lane loss are simulator inputs based on circuit characteristics.
+TRACK_TYRE_PROFILES = {
+    "Bahrain GP": (("C1", "C2", "C3"), 0.78, 22.0, 0.88),
+    "Saudi Arabian GP": (("C2", "C3", "C4"), 0.58, 25.0, 0.70),
+    "Australian GP": (("C2", "C3", "C4"), 0.55, 19.0, 0.65),
+    "Japanese GP": (("C1", "C2", "C3"), 0.82, 19.0, 0.90),
+    "Chinese GP": (("C2", "C3", "C4"), 0.68, 20.0, 0.78),
+    "Miami GP": (("C2", "C3", "C4"), 0.60, 18.0, 0.72),
+    "Emilia Romagna GP": (("C3", "C4", "C5"), 0.55, 20.0, 0.66),
+    "Monaco GP": (("C3", "C4", "C5"), 0.42, 17.0, 0.48),
+    "Canadian GP": (("C3", "C4", "C5"), 0.50, 18.0, 0.62),
+    "Spanish GP": (("C1", "C2", "C3"), 0.82, 20.0, 0.88),
+    "Austrian GP": (("C3", "C4", "C5"), 0.52, 17.0, 0.58),
+    "British GP": (("C1", "C2", "C3"), 0.78, 19.0, 0.86),
+    "Belgian GP": (("C1", "C2", "C3"), 0.72, 21.0, 0.82),
+    "Hungarian GP": (("C3", "C4", "C5"), 0.58, 19.0, 0.72),
+    "Dutch GP": (("C1", "C2", "C3"), 0.74, 18.0, 0.84),
+    "Italian GP": (("C3", "C4", "C5"), 0.45, 21.0, 0.52),
+    "Azerbaijan GP": (("C3", "C4", "C5"), 0.48, 24.0, 0.55),
+    "Singapore GP": (("C3", "C4", "C5"), 0.62, 22.0, 0.76),
+    "US GP (Austin)": (("C2", "C3", "C4"), 0.68, 20.0, 0.80),
+    "Mexico City GP": (("C2", "C3", "C4"), 0.58, 20.0, 0.70),
+    "Sao Paulo GP": (("C2", "C3", "C4"), 0.62, 18.0, 0.75),
+    "Las Vegas GP": (("C3", "C4", "C5"), 0.38, 21.0, 0.45),
+    "Qatar GP": (("C1", "C2", "C3"), 0.90, 18.0, 0.94),
+    "Abu Dhabi GP": (("C2", "C3", "C4"), 0.60, 20.0, 0.72),
 }
 
 
@@ -250,6 +324,13 @@ def build_2026_grid():
     ]
 
     for team in teams:
+        reference = TEAM_RESULTS_2026[team.name]
+        team.car_performance = reference["car_performance"]
+        team.reference_rank = reference["rank"]
+        team.reference_points = reference["points"]
+        team.pit_stop_average_seconds = PIT_STOP_AVERAGES_2026[team.name]
+        for attribute, value in TEAM_CAR_PROFILES_2026[team.name].items():
+            setattr(team, attribute, value)
         for d in team.drivers:
             d.team = team.name
             d.academy = ACTIVE_ACADEMIES.get(d.name)
@@ -294,6 +375,7 @@ def build_2026_calendar():
          medium_corners, high_speed_corners, long_straights,
          downforce_demand, braking_demand, traction_demand,
          straight_line_demand) = TRACK_DNA[name]
+        tyre_selection, tyre_wear_rate, pit_lane_time, pit_probability = TRACK_TYRE_PROFILES[name]
         tracks.append(Track(
             name=name,
             country=country,
@@ -312,6 +394,10 @@ def build_2026_calendar():
             braking_demand=braking_demand,
             traction_demand=traction_demand,
             straight_line_demand=straight_line_demand,
+            tyre_selection=tyre_selection,
+            tyre_wear_rate=tyre_wear_rate,
+            pit_lane_time_seconds=pit_lane_time,
+            pit_stop_probability=pit_probability,
         ))
     return tracks
 

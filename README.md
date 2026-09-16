@@ -14,6 +14,7 @@ python3 main.py --seasons 5           # 5 seasons, drivers move teams between th
 python3 main.py --seasons 10 --quiet  # only standings + transfer news each year
 python3 main.py --seed 42             # reproducible results
 python3 main.py --start-year 2026 --seasons 3
+python3 main.py --round 16 --seed 42 # simulate only Round 16 (Italy)
 ```
 
 No dependencies beyond the Python standard library.
