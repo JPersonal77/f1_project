@@ -1,0 +1,173 @@
+"""
+Starting data for the 2026 season: 11 teams, 22 drivers, and a 24-round
+calendar. Ratings are approximate/subjective, built for simulation flavour
+around each driver's real-world reputation heading into 2026 -- not an
+authoritative ranking.
+"""
+from f1sim.models import Driver, Team, Track
+
+
+# 2026 F2 prospects available for future academy promotions or transfers.
+# Ratings and potential are subjective simulator values, not official rankings.
+def _f2_prospect(team, nationality, age, potential, pace, racecraft,
+                 consistency, wet_skill, experience, aggression):
+    return {
+        "series": "F2",
+        "team": team,
+        "nationality": nationality,
+        "age": age,
+        "f1_potential": potential,
+        "pace": pace,
+        "racecraft": racecraft,
+        "consistency": consistency,
+        "wet_skill": wet_skill,
+        "experience": experience,
+        "aggression": aggression,
+    }
+
+
+F1_PROSPECTS = {
+    "Rafael Camara": _f2_prospect("Invicta Racing", "BRA", 21, 88, 85, 83, 80, 78, 54, 76),
+    "Joshua Durksen": _f2_prospect("Invicta Racing", "PRY", 22, 84, 82, 84, 77, 80, 64, 82),
+    "Ritomo Miyata": _f2_prospect("Hitech", "JPN", 26, 82, 82, 81, 79, 84, 86, 70),
+    "Colton Herta": _f2_prospect("Hitech", "USA", 26, 86, 87, 84, 74, 78, 78, 87),
+    "Noel Leon": _f2_prospect("Campos Racing", "MEX", 21, 84, 82, 80, 76, 77, 48, 81),
+    "Nikola Tsolov": _f2_prospect("Campos Racing", "BGR", 19, 89, 87, 84, 76, 79, 42, 86),
+    "Dino Beganovic": _f2_prospect("DAMS Lucas Oil", "SWE", 22, 87, 85, 82, 80, 81, 60, 76),
+    "Roman Bilinski": _f2_prospect("DAMS Lucas Oil", "POL", 22, 78, 78, 76, 72, 75, 48, 79),
+    "Gabriele Mini": _f2_prospect("MP Motorsport", "ITA", 21, 86, 85, 82, 77, 79, 54, 81),
+    "Oliver Goethe": _f2_prospect("MP Motorsport", "DEU", 21, 82, 82, 79, 75, 77, 48, 77),
+    "Sebastian Montoya": _f2_prospect("PREMA Racing", "COL", 20, 83, 82, 80, 72, 76, 44, 83),
+    "Mari Boya": _f2_prospect("PREMA Racing", "ESP", 21, 80, 80, 77, 74, 75, 50, 78),
+    "Martinius Stenshorne": _f2_prospect("Rodin Motorsport", "NOR", 20, 86, 84, 83, 78, 79, 48, 82),
+    "Alexander Dunne": _f2_prospect("Rodin Motorsport", "IRL", 20, 89, 88, 84, 72, 77, 43, 87),
+    "Kush Maini": _f2_prospect("ART Grand Prix", "IND", 26, 82, 81, 82, 76, 80, 82, 76),
+    "Tasanapol Inthraphuvasak": _f2_prospect("ART Grand Prix", "THA", 21, 83, 82, 78, 73, 75, 46, 82),
+    "Emerson Fittipaldi": _f2_prospect("AIX Racing", "BRA", 19, 80, 79, 75, 69, 73, 35, 81),
+    "Cian Shields": _f2_prospect("AIX Racing", "GBR", 20, 78, 77, 74, 71, 74, 40, 76),
+    "Nico Varrone": _f2_prospect("Van Amersfoort Racing", "ARG", 25, 81, 81, 84, 79, 80, 78, 75),
+    "Rafael Villagomez": _f2_prospect("Van Amersfoort Racing", "MEX", 25, 76, 76, 73, 71, 73, 70, 77),
+    "Laurens van Hoepen": _f2_prospect("TRIDENT", "NED", 21, 84, 82, 80, 76, 79, 51, 78),
+    "John Bennett": _f2_prospect("TRIDENT", "GBR", 22, 79, 78, 75, 72, 74, 46, 80),
+}
+
+
+# F1 academy teams and the seats where their juniors are most likely to land.
+ACADEMY_FEEDER_TEAMS = {
+    "Red Bull Racing": {"Racing Bulls"},
+    "Ferrari": {"Haas"},
+    "Mercedes": {"Williams"},
+    "McLaren": set(),
+    "Aston Martin": set(),
+    "Alpine": set(),
+}
+
+PROSPECT_ACADEMIES = {
+    "Dino Beganovic": "Ferrari",
+    "Nikola Tsolov": "Red Bull Racing",
+    "Mari Boya": "Aston Martin",
+    "Gabriele Mini": "Alpine",
+    "Rafael Camara": "Ferrari",
+}
+
+ACTIVE_ACADEMIES = {
+    "Oliver Bearman": "Ferrari",
+    "Liam Lawson": "Red Bull Racing",
+    "Isack Hadjar": "Red Bull Racing",
+    "Arvid Lindblad": "Red Bull Racing",
+    "Kimi Antonelli": "Mercedes",
+}
+
+for prospect_name, academy in PROSPECT_ACADEMIES.items():
+    F1_PROSPECTS[prospect_name]["academy"] = academy
+
+
+def build_2026_grid():
+    teams = [
+        Team("McLaren", "McLaren Formula 1 Team", car_performance=94, reliability=93, pit_crew=95, tier="front", drivers=[
+            Driver("Lando Norris", 4, "GBR", pace=93, racecraft=88, consistency=88, wet_skill=85, experience=85, aggression=78, age=26, contract_years=3),
+            Driver("Oscar Piastri", 81, "AUS", pace=92, racecraft=87, consistency=90, wet_skill=82, experience=78, aggression=75, age=25, contract_years=3),
+        ]),
+        Team("Ferrari", "Scuderia Ferrari", car_performance=91, reliability=87, pit_crew=90, tier="front", drivers=[
+            Driver("Charles Leclerc", 16, "MON", pace=93, racecraft=89, consistency=85, wet_skill=87, experience=88, aggression=82, age=28, contract_years=4),
+            Driver("Lewis Hamilton", 44, "GBR", pace=90, racecraft=92, consistency=87, wet_skill=93, experience=99, aggression=80, age=41, contract_years=2),
+        ]),
+        Team("Red Bull Racing", "Oracle Red Bull Racing", car_performance=92, reliability=88, pit_crew=97, tier="front", drivers=[
+            Driver("Max Verstappen", 1, "NED", pace=97, racecraft=96, consistency=93, wet_skill=95, experience=93, aggression=90, age=28, contract_years=3),
+            Driver("Isack Hadjar", 6, "FRA", pace=83, racecraft=80, consistency=78, wet_skill=76, experience=60, aggression=80, age=21, contract_years=2),
+        ]),
+        Team("Mercedes", "Mercedes-AMG Petronas F1 Team", car_performance=90, reliability=91, pit_crew=93, tier="front", drivers=[
+            Driver("George Russell", 63, "GBR", pace=90, racecraft=87, consistency=88, wet_skill=86, experience=83, aggression=76, age=28, contract_years=3),
+            Driver("Kimi Antonelli", 12, "ITA", pace=85, racecraft=79, consistency=76, wet_skill=80, experience=58, aggression=78, age=20, contract_years=2),
+        ]),
+        Team("Aston Martin", "Aston Martin Aramco F1 Team", car_performance=84, reliability=85, pit_crew=86, tier="midfield", drivers=[
+            Driver("Fernando Alonso", 14, "ESP", pace=89, racecraft=95, consistency=90, wet_skill=92, experience=99, aggression=82, age=44, contract_years=1),
+            Driver("Lance Stroll", 18, "CAN", pace=78, racecraft=72, consistency=75, wet_skill=74, experience=76, aggression=65, age=27, contract_years=3),
+        ]),
+        Team("Williams", "Atlassian Williams Racing", car_performance=85, reliability=86, pit_crew=84, tier="midfield", drivers=[
+            Driver("Carlos Sainz", 55, "ESP", pace=88, racecraft=86, consistency=87, wet_skill=83, experience=90, aggression=76, age=31, contract_years=2),
+            Driver("Alexander Albon", 23, "THA", pace=85, racecraft=83, consistency=82, wet_skill=80, experience=81, aggression=74, age=29, contract_years=2),
+        ]),
+        Team("Audi", "Audi F1 Team", car_performance=80, reliability=80, pit_crew=78, tier="midfield", drivers=[
+            Driver("Nico Hulkenberg", 27, "GER", pace=84, racecraft=85, consistency=84, wet_skill=88, experience=95, aggression=70, age=38, contract_years=2),
+            Driver("Gabriel Bortoleto", 5, "BRA", pace=80, racecraft=77, consistency=74, wet_skill=76, experience=55, aggression=75, age=21, contract_years=2),
+        ]),
+        Team("Alpine", "BWT Alpine F1 Team", car_performance=78, reliability=79, pit_crew=80, tier="midfield", drivers=[
+            Driver("Pierre Gasly", 10, "FRA", pace=84, racecraft=83, consistency=82, wet_skill=85, experience=88, aggression=77, age=29, contract_years=2),
+            Driver("Franco Colapinto", 43, "ARG", pace=78, racecraft=75, consistency=70, wet_skill=74, experience=55, aggression=82, age=23, contract_years=1),
+        ]),
+        Team("Haas", "MoneyGram Haas F1 Team", car_performance=79, reliability=82, pit_crew=79, tier="midfield", drivers=[
+            Driver("Esteban Ocon", 31, "FRA", pace=82, racecraft=81, consistency=81, wet_skill=79, experience=87, aggression=73, age=29, contract_years=2),
+            Driver("Oliver Bearman", 87, "GBR", pace=81, racecraft=78, consistency=76, wet_skill=77, experience=62, aggression=79, age=21, contract_years=2),
+        ]),
+        Team("Racing Bulls", "Visa Cash App Racing Bulls", car_performance=81, reliability=83, pit_crew=85, tier="midfield", drivers=[
+            Driver("Liam Lawson", 30, "NZL", pace=81, racecraft=79, consistency=76, wet_skill=78, experience=68, aggression=83, age=24, contract_years=2),
+            Driver("Arvid Lindblad", 41, "GBR", pace=79, racecraft=74, consistency=70, wet_skill=72, experience=40, aggression=80, age=18, contract_years=2),
+        ]),
+        Team("Cadillac", "Cadillac F1 Team", car_performance=72, reliability=75, pit_crew=72, tier="back", drivers=[
+            Driver("Sergio Perez", 11, "MEX", pace=84, racecraft=85, consistency=80, wet_skill=79, experience=90, aggression=72, age=36, contract_years=2),
+            Driver("Valtteri Bottas", 77, "FIN", pace=82, racecraft=80, consistency=85, wet_skill=81, experience=91, aggression=62, age=36, contract_years=2),
+        ]),
+    ]
+
+    for team in teams:
+        for d in team.drivers:
+            d.team = team.name
+            d.academy = ACTIVE_ACADEMIES.get(d.name)
+
+    return teams
+
+
+def build_2026_calendar():
+    # Overtaking difficulty: 0 = easy passing, 1 = Monaco-esque procession.
+    # Wet chance: rough probability of a wet or mixed-conditions weekend.
+    sprint_rounds = {"Australian GP", "Chinese GP", "Miami GP", "Canadian GP",
+                     "British GP", "Dutch GP"}
+    rounds = [
+        ("Bahrain GP", "Bahrain", 57, 0.25, 0.02),
+        ("Saudi Arabian GP", "Saudi Arabia", 50, 0.55, 0.01),
+        ("Australian GP", "Australia", 58, 0.45, 0.20),
+        ("Japanese GP", "Japan", 53, 0.60, 0.32),
+        ("Chinese GP", "China", 56, 0.40, 0.25),
+        ("Miami GP", "USA", 57, 0.45, 0.15),
+        ("Emilia Romagna GP", "Italy", 63, 0.65, 0.22),
+        ("Monaco GP", "Monaco", 78, 0.92, 0.20),
+        ("Canadian GP", "Canada", 70, 0.40, 0.35),
+        ("Spanish GP", "Spain", 66, 0.55, 0.15),
+        ("Austrian GP", "Austria", 71, 0.35, 0.46),
+        ("British GP", "UK", 52, 0.35, 0.30),
+        ("Belgian GP", "Belgium", 44, 0.30, 0.35),
+        ("Hungarian GP", "Hungary", 70, 0.75, 0.15),
+        ("Dutch GP", "Netherlands", 72, 0.60, 0.28),
+        ("Italian GP", "Italy", 53, 0.15, 0.18),
+        ("Azerbaijan GP", "Azerbaijan", 51, 0.50, 0.05),
+        ("Singapore GP", "Singapore", 62, 0.70, 0.42),
+        ("US GP (Austin)", "USA", 56, 0.40, 0.12),
+        ("Mexico City GP", "Mexico", 71, 0.55, 0.10),
+        ("Sao Paulo GP", "Brazil", 71, 0.45, 0.45),
+        ("Las Vegas GP", "USA", 50, 0.35, 0.04),
+        ("Qatar GP", "Qatar", 57, 0.40, 0.01),
+        ("Abu Dhabi GP", "UAE", 58, 0.35, 0.01),
+    ]
+    return [Track(name, country, laps, ot, wet, name in sprint_rounds)
+            for name, country, laps, ot, wet in rounds]
