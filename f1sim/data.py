@@ -25,6 +25,23 @@ def _f2_prospect(team, nationality, age, potential, pace, racecraft,
         "aggression": aggression,
     }
 
+# 2026 F3 prospects available for future academy promotions or transfers.
+# Ratings and potential are subjective simulator values, not official rankings.
+def _f3_prospect(team, nationality, age, potential, pace, racecraft,
+                 consistency, wet_skill, experience, aggression):
+    return {
+        "series": "F3",
+        "team": team,
+        "nationality": nationality,
+        "age": age,
+        "f1_potential": potential,
+        "pace": pace,
+        "racecraft": racecraft,
+        "consistency": consistency,
+        "wet_skill": wet_skill,
+        "experience": experience,
+        "aggression": aggression,
+    }
 
 F1_PROSPECTS = {
     "Rafael Camara": _f2_prospect("Invicta Racing", "BRA", 21, 88, 85, 83, 80, 78, 54, 76),
@@ -49,7 +66,14 @@ F1_PROSPECTS = {
     "Rafael Villagomez": _f2_prospect("Van Amersfoort Racing", "MEX", 25, 76, 76, 73, 71, 73, 70, 77),
     "Laurens van Hoepen": _f2_prospect("TRIDENT", "NED", 21, 84, 82, 80, 76, 79, 51, 78),
     "John Bennett": _f2_prospect("TRIDENT", "GBR", 22, 79, 78, 75, 72, 74, 46, 80),
+
+    "Freddie Slater": _f3_prospect("Trident", "GBR", 19, 82, 80, 78, 74, 76, 40, 80),
+    "Ugo Ugochukwu": _f3_prospect("Campos Racing", "USA", 19, 80, 78, 76, 72, 74, 38, 78),
+    "Tuuka Taponen": _f3_prospect("MP Motorsport", "FIN", 20, 78, 76, 74, 70, 72, 42, 76),
+    "Fionn Mcluaghlin": _f3_prospect("Hitech", "IRL", 20, 76, 74, 72, 68, 70, 40, 74),
 }
+
+
 
 
 # F1 academy teams and the seats where their juniors are most likely to land.
@@ -60,14 +84,26 @@ ACADEMY_FEEDER_TEAMS = {
     "McLaren": set(),
     "Aston Martin": set(),
     "Alpine": set(),
+    "Audi": set(),
 }
 
 PROSPECT_ACADEMIES = {
+
+    #F2 prospects (not yet in F1) are assigned to academies based on their current F2 team. 
     "Dino Beganovic": "Ferrari",
     "Nikola Tsolov": "Red Bull Racing",
     "Mari Boya": "Aston Martin",
     "Gabriele Mini": "Alpine",
     "Rafael Camara": "Ferrari",
+    "Joshua Durksen": "Mercedes",
+    "Alexander Dunne": "Alpine",
+    "Kush Maini": "Alpine",
+
+    # F3 prospects (not yet in F1) are assigned to academies based on their current F3 team.
+    "Freddie Slater": "Audi",
+    "Ugo Ugochukwu": "Red Bull Racing",
+    "Tuuka Taponen": "Ferrari",
+    'Fionn Mcluaghlin': "Red Bull Racing",
 }
 
 ACTIVE_ACADEMIES = {
