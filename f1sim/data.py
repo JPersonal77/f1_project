@@ -61,6 +61,34 @@ TEAM_RESULTS_2026 = {
     "Cadillac": {"rank": 11, "points": 0, "car_performance": 66},
 }
 
+# 2026 driver scores cross-referenced from Formula 1 Dashboard. SPS is the
+# season performance score; TMS is the teammate score. They are reference
+# signals, not replacements for the simulator's driver attributes.
+DRIVER_SCORES_2026 = {
+    "Kimi Antonelli": (84.1, 48.4),
+    "George Russell": (71.2, 51.6),
+    "Lewis Hamilton": (74.5, 48.2),
+    "Lando Norris": (68.0, 68.7),
+    "Charles Leclerc": (62.1, 51.8),
+    "Max Verstappen": (60.8, 85.1),
+    "Oscar Piastri": (50.1, 31.3),
+    "Isack Hadjar": (39.8, 18.3),
+    "Liam Lawson": (42.4, 49.4),
+    "Pierre Gasly": (49.0, 80.2),
+    "Arvid Lindblad": (37.6, 43.5),
+    "Franco Colapinto": (31.8, 19.8),
+    "Oliver Bearman": (33.2, 72.0),
+    "Gabriel Bortoleto": (31.9, 59.3),
+    "Nico Hulkenberg": (24.1, 40.7),
+    "Carlos Sainz": (29.4, 64.4),
+    "Alexander Albon": (17.8, 35.6),
+    "Esteban Ocon": (21.7, 28.0),
+    "Fernando Alonso": (27.1, 76.0),
+    "Lance Stroll": (6.9, 24.0),
+    "Valtteri Bottas": (20.0, 42.9),
+    "Sergio Perez": (22.5, 57.1),
+}
+
 TEAM_CAR_PROFILES_2026 = {
     "Mercedes": {"aero_efficiency": 93, "low_speed_performance": 86, "high_speed_performance": 94, "traction": 89, "braking": 91, "straight_line_speed": 87},
     "Ferrari": {"aero_efficiency": 90, "low_speed_performance": 89, "high_speed_performance": 87, "traction": 86, "braking": 91, "straight_line_speed": 88},
@@ -334,6 +362,7 @@ def build_2026_grid():
         for d in team.drivers:
             d.team = team.name
             d.academy = ACTIVE_ACADEMIES.get(d.name)
+            d.reference_sps, d.reference_tms = DRIVER_SCORES_2026[d.name]
 
     return teams
 

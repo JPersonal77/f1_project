@@ -23,6 +23,8 @@ class Driver:
     contract_years: int = 2
     team: Optional[str] = None
     academy: Optional[str] = None
+    reference_sps: float = 0.0
+    reference_tms: float = 0.0
 
     # season-scoped stats (reset each season)
     season_points: float = 0.0

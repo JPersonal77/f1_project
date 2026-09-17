@@ -54,6 +54,10 @@ def _track_adjustment(team, track) -> float:
 def _session_score(driver, team, wet: bool, rng: random.Random, track) -> float:
     base = (team.car_performance + _track_adjustment(team, track)
             + team.weekend_form) * 0.55
+    # External driver scores provide a restrained current-form adjustment.
+    driver_form = ((driver.reference_tms - 50.0) * 0.025
+                   + (driver.reference_sps - 50.0) * 0.012)
+    base += max(-2.0, min(2.0, driver_form))
     if wet:
         base += driver.wet_skill * 0.30 + driver.pace * 0.10 + driver.consistency * 0.05
     else:
@@ -65,6 +69,23 @@ def _session_score(driver, team, wet: bool, rng: random.Random, track) -> float:
 def _lap_time(score: float, track, rng: random.Random) -> float:
     base = 65.0 + track.circuit_length_km * 7.0
     return max(55.0, base - score * 0.12 + rng.gauss(0, 0.08))
+
+
+def _choose_dry_strategy(track, team, driver, rng: random.Random):
+    """Choose a varied but plausible dry-race strategy from recent patterns."""
+    soft, medium, hard = track.tyre_selection
+    pit_cost = track.pit_lane_time_seconds + team.pit_stop_average_seconds
+    two_stop_bias = (track.tyre_wear_rate - 0.55) * 1.8
+    two_stop_bias += max(0.0, 4.5 - pit_cost) * 0.04
+    two_stop_bias += max(0, driver.aggression - driver.consistency) * 0.003
+    two_stop_bias = max(0.05, min(0.65, two_stop_bias))
+
+    if rng.random() < two_stop_bias:
+        strategies = [(soft, medium, soft), (medium, hard, medium), (soft, hard, soft)]
+        return list(rng.choice(strategies))
+
+    strategies = [(medium, hard), (hard, medium), (soft, hard), (soft, medium)]
+    return list(rng.choice(strategies))
 
 
 @dataclass
@@ -205,13 +226,8 @@ def simulate_race(teams, track, grid: List[str], rng: random.Random) -> RaceResu
             strategy = ["INTERMEDIATE"]
             stops = 1
         else:
-            strategy = [track.tyre_selection[0]]
-            stops = 1
-            if (track.tyre_wear_rate > 0.72
-                    and rng.random() < track.tyre_wear_rate - 0.45):
-                stops += 1
-            for stop in range(stops):
-                strategy.append(track.tyre_selection[(stop + 1) % len(track.tyre_selection)])
+            strategy = _choose_dry_strategy(track, t, d, rng)
+            stops = len(strategy) - 1
         pit_stops[name] = stops
         tyre_strategy[name] = strategy
         pit_lane_time[name] = stops * (track.pit_lane_time_seconds + t.pit_stop_average_seconds)

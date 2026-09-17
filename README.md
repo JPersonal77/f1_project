@@ -58,9 +58,10 @@ f1sim/
 - **Sprint weekends:** add an `is_sprint` branch in `season.run_weekend`
   that calls a short sprint-quali + sprint-race before the main event and
   awards sprint points (8-7-6-5-4-3-2-1).
-- **Weather/strategy detail:** `simulation.py`'s `_session_score` is the
-  single place tyre choice, safety cars, or multi-stint strategy could hook
-  in — right now weather is a single wet/dry roll per session.
+- **Weather/strategy detail:** dry races choose from varied one-stop and
+  occasional two-stop plans such as M-H, H-M, S-H, and S-M-S. Tyre wear,
+  pit-lane loss, pit-crew speed, driver style, and random strategy calls all
+  influence the choice; wet races use intermediates in the current model.
 - **Driver development:** have `season.py` nudge young drivers' `pace`/
   `consistency` up slightly each season (and veterans' down) to model
   careers arcing over multiple simulated years.
