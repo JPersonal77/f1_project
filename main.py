@@ -47,6 +47,11 @@ def main():
                         help="Keep simulating seasons until this team wins the constructors' championship")
     parser.add_argument("--until-win", type=str,
                         help="Keep simulating seasons until this driver wins any race")
+    parser.add_argument("--until-tiebreak", action="store_true",
+                        help="Keep simulating seasons until the drivers' championship is decided "
+                             "by a tiebreak/countback (top two tied on points)")
+    parser.add_argument("--until-winners", type=int, metavar="N",
+                        help="Keep simulating seasons until a season has more than N different race winners")
     parser.add_argument("--max-seasons", type=int, default=1000,
                         help="Safety cap on seasons when using --until-*  (default 1000)")
     parser.add_argument("--history", action="store_true",
@@ -71,7 +76,10 @@ def main():
     teams = build_2026_grid()
     calendar = build_2026_calendar()
 
-    until_conditions = (args.until_champion, args.until_constructor_champion, args.until_win)
+    until_conditions = (
+        args.until_champion, args.until_constructor_champion, args.until_win,
+        args.until_tiebreak, args.until_winners,
+    )
     if any(until_conditions):
         run_until(teams, calendar, rng, args)
         return
@@ -116,6 +124,7 @@ def run_until(teams, calendar, rng, args):
         season_count += 1
 
         champion = season.driver_standings()[0]
+        runner_up = season.driver_standings()[1] if len(season.driver_standings()) > 1 else None
         constructor_champion = season.constructor_standings()[0]
         race_winners = set()
         for entry in season.race_log:
@@ -124,16 +133,27 @@ def run_until(teams, calendar, rng, args):
                 if result and result.classified:
                     race_winners.add(result.classified[0])
 
+        tiebreak = runner_up is not None and champion.season_points == runner_up.season_points
+        enough_winners = args.until_winners is not None and len(race_winners) > args.until_winners
+
         met = (
             (args.until_champion and champion.name == args.until_champion)
             or (args.until_constructor_champion and constructor_champion.name == args.until_constructor_champion)
             or (args.until_win and args.until_win in race_winners)
+            or (args.until_tiebreak and tiebreak)
+            or enough_winners
         )
 
         if met or season_count >= args.max_seasons:
             print(f"\n{'#' * 60}")
             if met:
                 print(f"  Condition met after {season_count} season(s) — {season.year}")
+                if args.until_tiebreak and tiebreak:
+                    print(f"  {champion.name} and {runner_up.name} both finish on "
+                          f"{champion.season_points:.0f} points — decided on countback.")
+                if enough_winners:
+                    print(f"  {season.year} had {len(race_winners)} different race winners "
+                          f"(more than {args.until_winners}).")
             else:
                 print(f"  Stopped after reaching the {args.max_seasons}-season cap without meeting the condition")
                 never_seen = watched_drivers - watched_seen
@@ -170,6 +190,8 @@ def run_history(teams, calendar, rng, args):
     driver_streak = 0
     last_team_champion = None
     team_streak = 0
+    last_driver_title_year = {}
+    last_team_title_year = {}
 
     def note_record(label, value, year, extra, higher_is_better=True):
         best = records.get(label)
@@ -190,16 +212,35 @@ def run_history(teams, calendar, rng, args):
         standings = season.driver_standings()
         champion = standings[0]
         runner_up = standings[1] if len(standings) > 1 else None
-        constructor_champion = season.constructor_standings()[0]
+        team_standings = season.constructor_standings()
+        constructor_champion = team_standings[0]
+        team_runner_up = team_standings[1] if len(team_standings) > 1 else None
 
         notes = []
 
         driver_titles[champion.name] += 1
         if driver_titles[champion.name] == 1:
             notes.append(f"{champion.name} claims a maiden drivers' title, driving for {constructor_champion.name}.")
+        elif champion.name in last_driver_title_year:
+            gap = year - last_driver_title_year[champion.name]
+            if gap >= 10:
+                notes.append(f"{champion.name} ends a {gap}-season wait to reclaim the drivers' title.")
+        last_driver_title_year[champion.name] = year
+
         team_titles[constructor_champion.name] += 1
         if team_titles[constructor_champion.name] == 1:
             notes.append(f"{constructor_champion.name} win their first constructors' title.")
+        elif constructor_champion.name in last_team_title_year:
+            gap = year - last_team_title_year[constructor_champion.name]
+            if gap >= 10:
+                notes.append(f"{constructor_champion.name} end a {gap}-season wait to reclaim the constructors' title.")
+        last_team_title_year[constructor_champion.name] = year
+
+        if champion.season_wins == 0:
+            notes.append(f"{champion.name} claims the {year} title without winning a single race.")
+        if runner_up is not None and runner_up.team == champion.team:
+            notes.append(f"{champion.team} lock out the top two in the {year} drivers' championship "
+                          f"({champion.name} & {runner_up.name}).")
 
         if champion.name == last_driver_champion:
             driver_streak += 1
@@ -229,6 +270,15 @@ def run_history(teams, calendar, rng, args):
             if note_record("biggest_title_margin", margin, year, champion.name):
                 notes.append(f"{champion.name} wins the {year} title by a record {margin:.0f} points.")
 
+        if team_runner_up is not None:
+            team_margin = constructor_champion.season_points - team_runner_up.season_points
+            if team_margin <= 20:
+                notes.append(f"Constructors' fight goes to the wire: {constructor_champion.name} beats "
+                              f"{team_runner_up.name} by just {team_margin:.0f} points in {year}.")
+            if note_record("biggest_team_title_margin", team_margin, year, constructor_champion.name):
+                notes.append(f"{constructor_champion.name} win the constructors' title by a record "
+                              f"{team_margin:.0f} points.")
+
         if note_record("driver_points", champion.season_points, year, champion.name):
             notes.append(f"{champion.name} sets a new single-season points record: {champion.season_points:.0f}.")
         if note_record("team_points", constructor_champion.season_points, year, constructor_champion.name):
@@ -237,27 +287,46 @@ def run_history(teams, calendar, rng, args):
         if note_record("driver_wins", champion.season_wins, year, champion.name):
             notes.append(f"{champion.name} sets a new single-season wins record: {champion.season_wins}.")
 
+        most_poles = max(standings, key=lambda d: d.season_poles)
+        if note_record("driver_poles", most_poles.season_poles, year, most_poles.name):
+            notes.append(f"{most_poles.name} sets a new single-season poles record: {most_poles.season_poles}.")
+
         if champion.age <= 21:
             notes.append(f"{champion.name} becomes champion at just {champion.age} years old.")
         if champion.age >= 40:
             notes.append(f"{champion.name} wins the title at {champion.age}, defying Father Time.")
 
+        season_winners = set()
         for entry in season.race_log:
             for key in ("race", "sprint_race"):
                 result = entry[key]
                 if not result or not result.classified:
                     continue
+                season_winners.add(result.classified[0])
                 winner = next((d for d in season.drivers() if d.name == result.classified[0]), None)
                 if winner and winner.team not in teams_with_a_win:
                     teams_with_a_win.add(winner.team)
                     notes.append(f"{winner.team} scores their first-ever race win, with {winner.name} at {entry['track']}.")
+
+        if len(season_winners) == 1:
+            notes.append(f"Total domination: {next(iter(season_winners))} wins every race in {year}.")
+        if note_record("most_different_winners", len(season_winners), year, f"{len(season_winners)} drivers"):
+            notes.append(f"{year} is the most competitive season yet: {len(season_winners)} different race winners.")
 
         for note in notes:
             print(f"  [{year}] {note}")
 
         if i < args.seasons - 1:
             regulation_change = (i + 1) % REGULATION_CYCLE_SEASONS == 0
-            run_offseason(teams, rng, quiet=True, regulation_change=regulation_change)
+            retiring = {d.name: d for d in season.drivers() if d.contract_years <= 1 or d.age >= 35}
+            news = run_offseason(teams, rng, quiet=True, regulation_change=regulation_change)
+            for line in news:
+                if "retirement" not in line:
+                    continue
+                driver = next((d for name, d in retiring.items() if name in line), None)
+                if driver and (driver_titles.get(driver.name, 0) >= 1 or driver.career_wins >= 20):
+                    print(f"  [{year}] {driver.name} retires after {driver.career_wins} career wins "
+                          f"and {driver_titles.get(driver.name, 0)} title(s).")
 
     print(f"\n{'#' * 60}\n  {args.seasons}-season history summary\n{'#' * 60}")
     print("\nMost drivers' titles:")

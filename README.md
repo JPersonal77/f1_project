@@ -19,12 +19,16 @@ python3 main.py --round 16 --seed 42 # simulate only Round 16 (Italy)
 python3 main.py --quiet --until-champion "Kimi Antonelli"          # keep simulating seasons until this driver takes the title
 python3 main.py --quiet --until-constructor-champion "Williams"    # ...until this team wins constructors'
 python3 main.py --quiet --until-win "Lance Stroll" --max-seasons 50 # ...until this driver wins any race (capped)
+python3 main.py --quiet --until-tiebreak --max-seasons 300          # ...until the title is decided on countback (points tie)
+python3 main.py --quiet --until-winners 8 --max-seasons 100          # ...until a season has more than 8 different race winners
 # --until-champion/--until-win also work for F2/F3 prospects not yet on the
 # grid; the run keeps going until they're promoted (or ends early if the
 # named driver retires/loses their seat before meeting the condition).
 python3 main.py --history --seasons 1000 --seed 1   # simulate many seasons fast, printing only
                                                      # notable events (titles, streaks, records,
-                                                     # first-ever wins) + a final all-time summary
+                                                     # first-ever wins, title droughts ended, close
+                                                     # constructors' fights, legendary retirements,
+                                                     # winless champions, 1-2 lockouts) + a summary
 python3 main.py --predict 16 --trials 2000 --seed 1 # Monte Carlo: simulate Round 16 many times and
                                                      # report win/podium/points probabilities per driver
 ```

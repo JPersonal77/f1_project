@@ -73,40 +73,57 @@ def _retirement_probability(age: int) -> float:
     return min(0.98, 0.15 + (age - RETIREMENT_AGE_RISK) * 0.105)
 
 
-def _rating_change(driver: Driver, teammate_points: float) -> int:
-    """Return a bounded seasonal development change for a driver's core ratings."""
-    if driver.age <= 25:
-        age_change = 1
+def _rating_change(driver: Driver, teammate_points: float, rng: random.Random) -> int:
+    """Return a bounded seasonal development change for a driver's core ratings.
+
+    Growth is probabilistic rather than guaranteed, so a single talented young
+    driver doesn't reliably snowball into a permanent generational talent -
+    real development is streaky, not a straight line.
+    """
+    age_change = 0
+    if driver.age <= 23:
+        age_change = 1 if rng.random() < 0.55 else 0
     elif driver.age >= 38:
         age_change = -2
     elif driver.age >= 35:
         age_change = -1
-    else:
-        age_change = 0
 
     performance_change = 0
-    if driver.season_points >= teammate_points + 15 and driver.season_points >= teammate_points * 1.1:
-        performance_change = 1
-    elif teammate_points >= driver.season_points + 15 and teammate_points >= driver.season_points * 1.1:
+    dominant = driver.season_points >= teammate_points + 15 and driver.season_points >= teammate_points * 1.1
+    underperformed = teammate_points >= driver.season_points + 15 and teammate_points >= driver.season_points * 1.1
+    if dominant:
+        performance_change = 1 if rng.random() < 0.45 else 0
+    elif underperformed:
         performance_change = -1
 
-    return max(-2, min(2, age_change + performance_change))
+    return max(-2, min(1, age_change + performance_change))
 
 
-def _update_driver_ratings(driver: Driver, teammate_points: float) -> None:
-    change = _rating_change(driver, teammate_points)
+RATING_SOFT_CAP = 92  # elite drivers can still hold this level, but rarely climb past it
+REGRESSION_THRESHOLD = 88  # ratings above this face a chance of rivals catching up
+REGRESSION_CHANCE = 0.15
+
+
+def _update_driver_ratings(driver: Driver, teammate_points: float, rng: random.Random) -> None:
+    change = _rating_change(driver, teammate_points, rng)
     for field_name in RATING_FIELDS:
-        setattr(driver, field_name, max(40, min(100, getattr(driver, field_name) + change)))
+        current = getattr(driver, field_name)
+        field_change = change
+        if field_change > 0 and current >= RATING_SOFT_CAP:
+            field_change = 0  # growth stalls near the top of the scale - true generational form is rare
+        if field_change <= 0 and current >= REGRESSION_THRESHOLD and rng.random() < REGRESSION_CHANCE:
+            field_change -= 1  # even elite talents plateau as the rest of the grid catches up
+        setattr(driver, field_name, max(40, min(100, current + field_change)))
     if driver.age <= 35:
         driver.experience = min(99, driver.experience + 1)
 
 
-def _update_prospect_ratings() -> None:
+def _update_prospect_ratings(rng: random.Random) -> None:
     """Age every F2/F3 prospect profile and apply age-based development."""
     for profile in F1_PROSPECTS.values():
         profile["age"] += 1
-        if profile["age"] <= 25:
-            change = 1
+        if profile["age"] <= 23:
+            change = 1 if rng.random() < 0.55 else 0
         elif profile["age"] >= 38:
             change = -2
         elif profile["age"] >= 35:
@@ -114,7 +131,10 @@ def _update_prospect_ratings() -> None:
         else:
             change = 0
         for field_name in RATING_FIELDS:
-            profile[field_name] = max(40, min(100, profile[field_name] + change))
+            current = profile[field_name]
+            if change > 0 and current >= RATING_SOFT_CAP:
+                continue
+            profile[field_name] = max(40, min(100, current + change))
         if profile["age"] <= 35:
             profile["experience"] = min(99, profile["experience"] + 1)
 
@@ -222,7 +242,7 @@ def run_offseason(teams, rng: random.Random, quiet=False, regulation_change=Fals
     former_teams = {}
     active_names = {d.name for team in teams for d in team.drivers}
     available_prospects = set(F1_PROSPECTS) - active_names
-    _update_prospect_ratings()
+    _update_prospect_ratings(rng)
 
     for team in teams:
         kept = []
@@ -230,7 +250,7 @@ def run_offseason(teams, rng: random.Random, quiet=False, regulation_change=Fals
             d.age += 1
             d.contract_years -= 1
             teammate_points = sum(td.season_points for td in team.drivers if td is not d)
-            _update_driver_ratings(d, teammate_points)
+            _update_driver_ratings(d, teammate_points, rng)
             underperformed = (
                 len(team.drivers) == 2
                 and d.season_points < 0.4 * teammate_points
