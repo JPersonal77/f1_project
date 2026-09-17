@@ -14,11 +14,12 @@ import argparse
 import io
 import random
 import contextlib
-from collections import defaultdict
+from collections import Counter, defaultdict
 
 from f1sim.data import academy_policy_report, build_2026_grid, build_2026_calendar
 from f1sim.season import Season
 from f1sim.transfers import run_offseason, REGULATION_CYCLE_SEASONS
+from f1sim import simulation as sim
 
 
 def _ordinal(n):
@@ -51,6 +52,11 @@ def main():
     parser.add_argument("--history", action="store_true",
                         help="Simulate --seasons seasons back-to-back, printing only notable "
                              "events (titles, records, upsets) instead of full detail or standings")
+    parser.add_argument("--predict", type=int, metavar="ROUND",
+                        help="Simulate one calendar round many times and report the most likely "
+                             "outcomes (win/podium/points probabilities) instead of one result")
+    parser.add_argument("--trials", type=int, default=1000,
+                        help="Number of Monte Carlo trials for --predict (default 1000)")
     args = parser.parse_args()
 
     if args.show_academies:
@@ -72,6 +78,10 @@ def main():
 
     if args.history:
         run_history(teams, calendar, rng, args)
+        return
+
+    if args.predict:
+        run_prediction(teams, calendar, rng, args)
         return
 
     for i in range(args.seasons):
@@ -261,6 +271,64 @@ def run_history(teams, calendar, rng, args):
         print(f"  {label:<20} {value:8.1f}  ({extra}, {year})")
 
 
+def run_prediction(teams, calendar, rng, args):
+    """Simulates a single calendar round many times (fresh grid, no season carry-over)
+    and reports win/podium/points probabilities instead of a single result."""
+    if not 1 <= args.predict <= len(calendar):
+        print(f"--predict must be between 1 and {len(calendar)}")
+        return
+    track = calendar[args.predict - 1]
+    trials = max(1, args.trials)
+
+    drivers = [d for t in teams for d in t.drivers]
+    driver_team = {d.name: d.team for d in drivers}
+    win_counts = Counter()
+    podium_counts = Counter()
+    points_counts = Counter()
+    pole_counts = Counter()
+    dnf_counts = Counter()
+    position_sum = defaultdict(float)
+    field_size = len(drivers)
+
+    for _ in range(trials):
+        for team in teams:
+            team.weekend_form = rng.gauss(0.0, 2.0)
+        quali = sim.simulate_qualifying(teams, track, rng)
+        race = sim.simulate_race(teams, track, quali.grid, rng)
+
+        pole_counts[quali.grid[0]] += 1
+        for position, name in enumerate(race.classified, start=1):
+            position_sum[name] += position
+            if position == 1:
+                win_counts[name] += 1
+            if position <= 3:
+                podium_counts[name] += 1
+            if position <= 10:
+                points_counts[name] += 1
+        for name in race.dnfs:
+            dnf_counts[name] += 1
+            position_sum[name] += field_size  # treat a DNF as a back-of-field result
+
+    print(f"\n{'#' * 60}\n  Prediction: Round {args.predict} — {track.name} ({track.country}) "
+          f"[{trials} simulated trials]\n{'#' * 60}")
+
+    top_pole = pole_counts.most_common(1)
+    top_win = win_counts.most_common(1)
+    if top_pole:
+        print(f"\nMost likely pole sitter: {top_pole[0][0]} ({top_pole[0][1] / trials:.1%})")
+    if top_win:
+        print(f"Most likely race winner: {top_win[0][0]} ({top_win[0][1] / trials:.1%})")
+
+    print("\nProjected finishing order (by average simulated position):")
+    ranking = sorted(drivers, key=lambda d: position_sum[d.name] / trials)
+    print(f"  {'':<4}{'Driver':<25}{'Team':<18}{'Win%':>7}{'Podium%':>9}{'Points%':>9}"
+          f"{'Avg P':>7}{'DNF%':>7}")
+    for position, d in enumerate(ranking, start=1):
+        avg_pos = position_sum[d.name] / trials
+        print(f"  P{position:<3}{d.name:<25}{driver_team.get(d.name, ''):<18}"
+              f"{win_counts[d.name] / trials:>6.1%} {podium_counts[d.name] / trials:>8.1%} "
+              f"{points_counts[d.name] / trials:>8.1%} {avg_pos:>6.1f} "
+              f"{dnf_counts[d.name] / trials:>6.1%}")
 
 
 if __name__ == "__main__":

@@ -25,6 +25,8 @@ python3 main.py --quiet --until-win "Lance Stroll" --max-seasons 50 # ...until t
 python3 main.py --history --seasons 1000 --seed 1   # simulate many seasons fast, printing only
                                                      # notable events (titles, streaks, records,
                                                      # first-ever wins) + a final all-time summary
+python3 main.py --predict 16 --trials 2000 --seed 1 # Monte Carlo: simulate Round 16 many times and
+                                                     # report win/podium/points probabilities per driver
 ```
 
 No dependencies beyond the Python standard library.

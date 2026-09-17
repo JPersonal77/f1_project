@@ -331,12 +331,12 @@ def build_2026_grid():
             Driver("Lewis Hamilton", 44, "GBR", pace=90, racecraft=92, consistency=87, wet_skill=93, experience=99, aggression=80, age=41, contract_years=2),
         ]),
         Team("Red Bull Racing", "Oracle Red Bull Racing", car_performance=92, reliability=88, pit_crew=97, tier="front", engine="Red Bull Ford", engine_performance=88, engine_reliability=84, drivers=[
-            Driver("Max Verstappen", 1, "NED", pace=97, racecraft=96, consistency=93, wet_skill=95, experience=93, aggression=90, age=28, contract_years=3),
+            Driver("Max Verstappen", 1, "NED", pace=92, racecraft=90, consistency=88, wet_skill=90, experience=93, aggression=90, age=28, contract_years=3),
             Driver("Isack Hadjar", 6, "FRA", pace=83, racecraft=80, consistency=78, wet_skill=76, experience=60, aggression=80, age=21, contract_years=2),
         ]),
         Team("Mercedes", "Mercedes-AMG Petronas F1 Team", car_performance=90, reliability=91, pit_crew=93, tier="front", engine="Mercedes", engine_performance=93, engine_reliability=92, drivers=[
-            Driver("George Russell", 63, "GBR", pace=90, racecraft=87, consistency=88, wet_skill=86, experience=83, aggression=76, age=28, contract_years=3),
-            Driver("Kimi Antonelli", 12, "ITA", pace=91, racecraft=85, consistency=82, wet_skill=84, experience=62, aggression=78, age=20, contract_years=2),
+            Driver("George Russell", 63, "GBR", pace=89, racecraft=85, consistency=86, wet_skill=85, experience=83, aggression=76, age=28, contract_years=3),
+            Driver("Kimi Antonelli", 12, "ITA", pace=94, racecraft=88, consistency=85, wet_skill=85, experience=65, aggression=78, age=20, contract_years=2),
         ]),
         Team("Aston Martin", "Aston Martin Aramco F1 Team", car_performance=84, reliability=77, pit_crew=79, tier="midfield", engine="Honda RBPT", engine_performance=89, engine_reliability=87, drivers=[
             Driver("Fernando Alonso", 14, "ESP", pace=89, racecraft=95, consistency=90, wet_skill=92, experience=99, aggression=82, age=44, contract_years=1),
