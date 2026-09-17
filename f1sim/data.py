@@ -248,6 +248,23 @@ TEAM_JUNIOR_APPETITE = {
     "Cadillac": 0.05,
 }
 
+# Relative signing preferences used by the offseason market. Values are
+# preference bonuses, not guarantees; contract and seat availability still win.
+DRIVER_TEAM_PREFERENCES = {
+    "Max Verstappen": {"Red Bull Racing": 25, "Mercedes": 10},
+    "Lando Norris": {"McLaren": 25, "Mercedes": 8},
+    "Oscar Piastri": {"McLaren": 25, "Mercedes": 6},
+    "Charles Leclerc": {"Ferrari": 25, "Mercedes": 8},
+    "Lewis Hamilton": {"Ferrari": 20, "Mercedes": 12},
+    "George Russell": {"Mercedes": 25, "Williams": 12},
+    "Kimi Antonelli": {"Mercedes": 25},
+    "Fernando Alonso": {"Aston Martin": 25, "Ferrari": 8},
+    "Carlos Sainz": {"Williams": 20, "Ferrari": 8},
+    "Pierre Gasly": {"Alpine": 20},
+    "Oliver Bearman": {"Ferrari": 25, "Haas": 15},
+    "Liam Lawson": {"Red Bull Racing": 20, "Racing Bulls": 18},
+}
+
 JUNIOR_APPETITE_LABELS = {
     "very_low": (0.0, 0.20),
     "low": (0.20, 0.40),

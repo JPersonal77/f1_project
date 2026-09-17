@@ -54,10 +54,11 @@ def _track_adjustment(team, track) -> float:
 def _session_score(driver, team, wet: bool, rng: random.Random, track) -> float:
     base = (team.car_performance + _track_adjustment(team, track)
             + team.weekend_form) * 0.55
-    # External driver scores provide a restrained current-form adjustment.
-    driver_form = ((driver.reference_tms - 50.0) * 0.025
-                   + (driver.reference_sps - 50.0) * 0.012)
-    base += max(-2.0, min(2.0, driver_form))
+    # External driver scores provide a stronger current-form adjustment while
+    # the cap prevents one hot season from replacing the underlying rating.
+    driver_form = ((driver.reference_sps - 50.0) * 0.07
+                   + (driver.reference_tms - 50.0) * 0.02)
+    base += max(-4.0, min(4.0, driver_form))
     if wet:
         base += driver.wet_skill * 0.30 + driver.pace * 0.10 + driver.consistency * 0.05
     else:

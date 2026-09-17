@@ -21,6 +21,7 @@ from f1sim.data import (
     F1_PROSPECTS,
     TEAM_ACADEMY_PREFERENCES,
     TEAM_JUNIOR_APPETITE,
+    DRIVER_TEAM_PREFERENCES,
 )
 from f1sim.models import Driver
 
@@ -28,13 +29,55 @@ ROOKIE_FIRST_NAMES = ["Enzo", "Mateo", "Kaito", "Theo", "Noah", "Leon", "Rafael"
 ROOKIE_LAST_NAMES = ["Marchetti", "Dubois", "Nakamura", "Reyes", "Vermeer", "Kowalski", "Silva", "Larsen", "Costa", "Berg"]
 ROOKIE_NATIONALITIES = ["ITA", "FRA", "JPN", "MEX", "NED", "POL", "BRA", "DEN", "POR", "NOR"]
 
-RETIREMENT_AGE_RISK = 39  # drivers older than this start facing retirement rolls
+RETIREMENT_AGE_RISK = 35
+RETIREMENT_AGE_CAP = 45
+RATING_FIELDS = ("pace", "racecraft", "consistency", "wet_skill")
 
 
-def _generate_rookie(rng: random.Random, number_pool: set, team_name: str) -> Driver:
+def _retirement_probability(age: int) -> float:
+    """Return increasing retirement risk from age 35, capped at 45."""
+    if age >= RETIREMENT_AGE_CAP:
+        return 1.0
+    if age < RETIREMENT_AGE_RISK:
+        return 0.0
+    return min(0.98, 0.15 + (age - RETIREMENT_AGE_RISK) * 0.105)
+
+
+def _rating_change(driver: Driver, teammate_points: float) -> int:
+    """Return a bounded seasonal development change for a driver's core ratings."""
+    if driver.age <= 25:
+        age_change = 1
+    elif driver.age >= 38:
+        age_change = -2
+    elif driver.age >= 35:
+        age_change = -1
+    else:
+        age_change = 0
+
+    performance_change = 0
+    if driver.season_points >= teammate_points + 15 and driver.season_points >= teammate_points * 1.1:
+        performance_change = 1
+    elif teammate_points >= driver.season_points + 15 and teammate_points >= driver.season_points * 1.1:
+        performance_change = -1
+
+    return max(-2, min(2, age_change + performance_change))
+
+
+def _update_driver_ratings(driver: Driver, teammate_points: float) -> None:
+    change = _rating_change(driver, teammate_points)
+    for field_name in RATING_FIELDS:
+        setattr(driver, field_name, max(40, min(100, getattr(driver, field_name) + change)))
+    if driver.age <= 35:
+        driver.experience = min(99, driver.experience + 1)
+
+
+def _generate_rookie(rng: random.Random, number_pool: set, team_name: str,
+                     excluded_names=None) -> Driver:
+    excluded_names = excluded_names or set()
     academy_prospects = [
         (name, profile) for name, profile in F1_PROSPECTS.items()
-        if team_name in ACADEMY_FEEDER_TEAMS.get(profile.get("academy"), set())
+        if name not in excluded_names
+        and team_name in ACADEMY_FEEDER_TEAMS.get(profile.get("academy"), set())
     ]
     if academy_prospects:
         name, profile = rng.choice(academy_prospects)
@@ -116,29 +159,34 @@ def run_offseason(teams, rng: random.Random, quiet=False) -> list:
 
     free_agents = []
     retirements = []
-    available_prospects = set(F1_PROSPECTS)
+    former_teams = {}
+    active_names = {d.name for team in teams for d in team.drivers}
+    available_prospects = set(F1_PROSPECTS) - active_names
 
     for team in teams:
         kept = []
         for d in team.drivers:
+            d.age += 1
             d.contract_years -= 1
             teammate_points = sum(td.season_points for td in team.drivers if td is not d)
+            _update_driver_ratings(d, teammate_points)
             underperformed = (
                 len(team.drivers) == 2
                 and d.season_points < 0.4 * teammate_points
                 and teammate_points > 30
             )
             seat_at_risk = d.contract_years <= 0 or (underperformed and rng.random() < 0.35)
+            retirement_risk = _retirement_probability(d.age)
 
-            if seat_at_risk:
-                # Retirement check for veterans having a rough time
-                if d.age >= RETIREMENT_AGE_RISK and rng.random() < 0.30:
-                    retirements.append(d)
-                    news.append(f"{d.name} announces retirement from Formula 1 after the {team.name} campaign.")
-                else:
-                    d.team = None
-                    d.contract_years = 0
-                    free_agents.append(d)
+            if d.age >= RETIREMENT_AGE_CAP or (seat_at_risk and (
+                    retirement_risk > 0 and rng.random() < retirement_risk)):
+                retirements.append(d)
+                news.append(f"{d.name} announces retirement from Formula 1 after the {team.name} campaign.")
+            elif seat_at_risk:
+                former_teams[d.name] = d.team
+                d.team = None
+                d.contract_years = 0
+                free_agents.append(d)
             else:
                 kept.append(d)
         team.drivers = kept
@@ -168,17 +216,43 @@ def run_offseason(teams, rng: random.Random, quiet=False) -> list:
                     f"{academy_driver.name} joins {team.name} from the "
                     f"{academy_driver.academy} academy."
                 )
-            elif free_agents:
-                new_driver = free_agents.pop(0)
-                new_driver.team = team.name
-                new_driver.contract_years = rng.randint(1, 3)
-                team.drivers[i] = new_driver
-                news.append(f"{new_driver.name} signs with {team.name} for {new_driver.contract_years} year(s).")
-            else:
-                rookie = _generate_rookie(rng, used_numbers, team.name)
-                rookie.team = team.name
-                team.drivers[i] = rookie
-                news.append(f"{team.name} promotes junior talent {rookie.name} ({rookie.nationality}) to a race seat.")
+
+    open_slots = [
+        (team, i) for team in sorted(teams, key=lambda t: tier_priority.get(t.tier, 3))
+        for i, driver in enumerate(team.drivers) if driver is None
+    ]
+
+    while free_agents and open_slots:
+        candidates = [
+            (
+                driver.overall
+                + DRIVER_TEAM_PREFERENCES.get(driver.name, {}).get(team.name, 0)
+                + (18 if former_teams.get(driver.name) == team.name else 0),
+                driver,
+                index,
+            )
+            for index, (team, _) in enumerate(open_slots)
+            for driver in free_agents
+        ]
+        fit, driver, slot_index = max(candidates, key=lambda candidate: candidate[0])
+        team, seat_index = open_slots.pop(slot_index)
+        free_agents.remove(driver)
+        driver.team = team.name
+        driver.contract_years = rng.randint(1, 3)
+        team.drivers[seat_index] = driver
+        news.append(f"{driver.name} signs with {team.name} for {driver.contract_years} year(s).")
+
+    for team, seat_index in open_slots:
+        rookie = _generate_rookie(
+            rng, used_numbers, team.name,
+            excluded_names=active_names | {
+                d.name for current_team in teams
+                for d in current_team.drivers if d is not None
+            },
+        )
+        rookie.team = team.name
+        team.drivers[seat_index] = rookie
+        news.append(f"{team.name} promotes junior talent {rookie.name} ({rookie.nationality}) to a race seat.")
 
     # Any free agents left without a seat leave the grid (no room at the inn)
     for leftover in free_agents:

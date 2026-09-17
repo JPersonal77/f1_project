@@ -37,7 +37,9 @@ f1sim/
 - **Ratings (0-100):** each driver has `pace`, `racecraft`, `consistency`,
   `wet_skill`, `experience`, `aggression`. Each team has `car_performance`,
   `reliability`, `pit_crew`. These are subjective flavour numbers, not
-  official ratings — tune them freely in `data.py`.
+  official ratings — tune them freely in `data.py`. Current-season SPS/TMS
+  references from the driver data source add a bounded form adjustment, so a
+  driver in strong real-world form can outperform their static rating.
 - **Qualifying:** Q1 (22 → 15), Q2 (15 → 10), Q3 (top 10 for pole), each
   session re-rolling a performance score (car-weighted, plus driver skill
   and Gaussian noise). Wet-weekend rolls re-weight toward `wet_skill`.
@@ -46,12 +48,15 @@ f1sim/
   Monaco) plus a DNF roll driven by team reliability and driver
   aggression-vs-consistency. Standard 25-18-15-...-1 points; fastest lap is
   displayed but awards no championship bonus.
-- **Transfers (`transfers.py`, runs between seasons):** contracts count
-  down each year; out-of-contract drivers become free agents; a driver who
-  badly underperforms a teammate can be dropped early; veterans past 39
-  sometimes retire instead of re-entering the market; free agents are
-  matched to open seats by overall skill vs. team tier (front-running teams
-  get first pick); any seats still open go to a freshly generated rookie.
+- **Transfers (`transfers.py`, runs between seasons):** drivers age a year;
+  core ratings rise through age 25, hold steady through 34, decline from 35,
+  and decline faster from 38. Strong results versus a teammate add a rating
+  point, while a clearly weaker season loses one. Contracts count down each
+  year; out-of-contract drivers become free agents; a driver who badly
+  underperforms a teammate can be dropped early; retirement risk starts at
+  age 35 and drivers cannot continue beyond age 45. Free agents are matched
+  to open seats by overall skill vs. team tier (front-running teams get first
+  pick); any seats still open go to a freshly generated rookie.
 
 ## Easy ways to extend it
 
@@ -62,9 +67,6 @@ f1sim/
   occasional two-stop plans such as M-H, H-M, S-H, and S-M-S. Tyre wear,
   pit-lane loss, pit-crew speed, driver style, and random strategy calls all
   influence the choice; wet races use intermediates in the current model.
-- **Driver development:** have `season.py` nudge young drivers' `pace`/
-  `consistency` up slightly each season (and veterans' down) to model
-  careers arcing over multiple simulated years.
 - **Persistence:** `Team`/`Driver` are plain dataclasses — trivial to
   `dataclasses.asdict()` and dump to JSON if you want to save/load a
   franchise across runs instead of always starting from 2026.
