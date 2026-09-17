@@ -56,7 +56,10 @@ f1sim/
   underperforms a teammate can be dropped early; retirement risk starts at
   age 35 and drivers cannot continue beyond age 45. Free agents are matched
   to open seats by overall skill vs. team tier (front-running teams get first
-  pick); any seats still open go to a freshly generated rookie.
+  pick); any seats still open go to a freshly generated rookie. F2 and F3
+  prospect profiles age and follow the same age-based rating curve every year;
+  drivers aged 45 or older cannot be promoted to a first F1 seat. Generated
+  rookies follow the same curve after their first F1 season.
 
 ## Easy ways to extend it
 

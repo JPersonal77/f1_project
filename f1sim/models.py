@@ -7,6 +7,17 @@ rather than precise real-world assessments.
 from dataclasses import dataclass, field
 from typing import Optional
 
+NATIONALITY_FLAGS = {
+    "ARG": "🇦🇷", "AUS": "🇦🇺", "AUT": "🇦🇹", "BEL": "🇧🇪", "BGR": "🇧🇬",
+    "BRA": "🇧🇷", "CAN": "🇨🇦", "CHE": "🇨🇭", "CHL": "🇨🇱", "COL": "🇨🇴",
+    "CZE": "🇨🇿", "DEU": "🇩🇪", "DNK": "🇩🇰", "ESP": "🇪🇸", "FIN": "🇫🇮",
+    "FRA": "🇫🇷", "GBR": "🇬🇧", "GER": "🇩🇪", "HUN": "🇭🇺", "IND": "🇮🇳",
+    "IRL": "🇮🇪", "ITA": "🇮🇹", "JPN": "🇯🇵", "MEX": "🇲🇽", "MON": "🇲🇨",
+    "NED": "🇳🇱", "NLD": "🇳🇱", "NOR": "🇳🇴", "NZL": "🇳🇿", "POL": "🇵🇱",
+    "POR": "🇵🇹", "PRY": "🇵🇾", "SWE": "🇸🇪", "THA": "🇹🇭", "TUR": "🇹🇷",
+    "URY": "🇺🇾", "USA": "🇺🇸", "ZAF": "🇿🇦",
+}
+
 
 @dataclass
 class Driver:
@@ -57,6 +68,10 @@ class Driver:
             + self.experience * 0.10
             + self.wet_skill * 0.10
         )
+
+    @property
+    def flag(self) -> str:
+        return NATIONALITY_FLAGS.get(self.nationality, "🏳️")
 
     def __repr__(self):
         return f"{self.name} (#{self.number}, {self.team})"

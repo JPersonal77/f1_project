@@ -97,6 +97,10 @@ class Season:
         surname = name.split()[-1]
         return surname[:3].upper()
 
+    def _driver_label(self, name):
+        driver = next((d for d in self.drivers() if d.name == name), None)
+        return f"{driver.flag} {name}" if driver else name
+
     def _print_starting_grid(self, quali):
         self._p("\nStarting grid:")
         for row in range(11):
@@ -118,7 +122,7 @@ class Season:
             for result in session:
                 display_time = (self._time(best_time) if result["position"] == 1
                                 else self._qualifying_delta(result["time"] - best_time))
-                print(f"  P{result['position']:2d}  {result['name']:<22} "
+                print(f"  P{result['position']:2d}  {self._driver_label(result['name']):<25} "
                       f"{display_time:<10}  {result['laps']:2d} laps")
 
     def _print_qualifying(self, quali, title="Qualifying"):
@@ -130,7 +134,7 @@ class Season:
             pole_time = times[names[0]]
             for position, name in enumerate(names, start=1):
                 position_text = self._pole_text(f"P{position:2d}") if position == 1 else f"P{position:2d}"
-                print(f"  {position_text}  {name:<22} "
+                print(f"  {position_text}  {self._driver_label(name):<25} "
                       f"{self._time(times[name])} {self._qualifying_delta(times[name] - pole_time)}")
             return
 
@@ -149,18 +153,18 @@ class Season:
                         else self._qualifying_delta(max(raw_gap, previous_gap + 0.001)))
             previous_gap = max(raw_gap, previous_gap + 0.001)
             position_text = self._pole_text(f"P{position:2d}") if position == 1 else f"P{position:2d}"
-            print(f"  {position_text}  {name:<22} {display_time}")
+            print(f"  {position_text}  {self._driver_label(name):<25} {display_time}")
             position += 1
         print("  ----------------Q2----------------")
         for name in q2_names:
             previous_gap = max(q2_times[name] - pole_time, previous_gap + 0.001)
-            print(f"  P{position:2d}  {name:<22} "
+            print(f"  P{position:2d}  {self._driver_label(name):<25} "
                 f"{self._qualifying_delta(previous_gap)}")
             position += 1
         print("  ----------------Q1----------------")
         for name in q1_names:
             previous_gap = max(q1_times[name] - pole_time, previous_gap + 0.001)
-            print(f"  P{position:2d}  {name:<22} "
+            print(f"  P{position:2d}  {self._driver_label(name):<25} "
                 f"{self._qualifying_delta(previous_gap)}")
             position += 1
 
@@ -180,12 +184,12 @@ class Season:
             strategy = self._strategy_labels(race.tyre_strategy[name], self._active_track)
             change = self._position_change(race, name)
             marker = self._position_marker(change)
-            print(f"  P{position:2d}  {name + fastest_marker:<27} {marker} "
+            print(f"  P{position:2d}  {self._driver_label(name) + fastest_marker:<30} {marker} "
                 f"{strategy:<7} {display_time:<14} "
                   f"{race.laps_completed[name]:2d} laps +{earned.get(name, 0):.0f} pts")
         for name in race.dnfs:
             laps_down = max(0, max(race.laps_completed.values()) - race.laps_completed[name])
-            print(f"  DNF   {name:<22} +{laps_down} laps")
+            print(f"  DNF   {self._driver_label(name):<25} +{laps_down} laps")
         total_stops = sum(race.pit_stops.values())
         print(f"  Pit stops: {total_stops} total; tyres: {self._tyre_labels(self._active_track, race.wet)}; "
               f"pit lane transit: {self._active_track.pit_lane_time_seconds:.1f}s")
@@ -197,7 +201,7 @@ class Season:
         for change, name in overtakes[:5]:
             if change <= 0:
                 break
-            print(f"    {name:<22} {self._position_marker(change)} positions")
+            print(f"    {self._driver_label(name):<25} {self._position_marker(change)} positions")
 
     def run_weekend(self, round_no: int, track):
         self._p(f"\n=== Round {round_no}: {track.name} ({track.country}) ===")
@@ -262,7 +266,7 @@ class Season:
     def print_standings(self):
         print(f"\n--- {self.year} Final Drivers' Championship ---")
         for i, d in enumerate(self.driver_standings(), start=1):
-            print(f"  {i:2d}. {d.name:<22} {d.team:<18} {d.season_points:5.0f} pts "
+            print(f"  {i:2d}. {d.flag} {d.name:<22} {d.team:<18} {d.season_points:5.0f} pts "
                   f"({d.season_wins}W, {d.season_podiums}P, {d.season_dnfs} DNF)")
 
         print(f"\n--- {self.year} Final Constructors' Championship ---")
