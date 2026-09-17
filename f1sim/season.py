@@ -53,9 +53,9 @@ class Season:
         return f"\033[35m{text}\033[0m"
 
     @staticmethod
-    def _tyre_labels(track, wet=False):
+    def _tyre_labels(track, wet=False, extreme_wet=False):
         if wet:
-            return "I"
+            return "W" if extreme_wet else "I"
         if track.tyre_selection:
             labels = "S M H".split()
             return "/".join(labels[:len(track.tyre_selection)])
@@ -169,8 +169,11 @@ class Season:
             position += 1
 
     def _print_race(self, race, earned, title="Race"):
-        cond = "WET" if race.wet else "Dry"
+        cond = "EXTREME WET" if race.extreme_wet else ("WET" if race.wet else "Dry")
         self._p(f"\n{title} ({cond}):")
+        if race.safety_cars:
+            label = "Safety car" if race.safety_cars == 1 else f"{race.safety_cars} safety cars"
+            self._p(f"  \033[33m⚠ {label} deployed — field bunched up\033[0m")
         winner_time = race.race_times[race.classified[0]] if race.classified else 0
         for position, name in enumerate(race.classified, start=1):
             if position == 1:
@@ -191,7 +194,8 @@ class Season:
             laps_down = max(0, max(race.laps_completed.values()) - race.laps_completed[name])
             print(f"  DNF   {self._driver_label(name):<25} +{laps_down} laps")
         total_stops = sum(race.pit_stops.values())
-        print(f"  Pit stops: {total_stops} total; tyres: {self._tyre_labels(self._active_track, race.wet)}; "
+        print(f"  Pit stops: {total_stops} total; "
+              f"tyres: {self._tyre_labels(self._active_track, race.wet, race.extreme_wet)}; "
               f"pit lane transit: {self._active_track.pit_lane_time_seconds:.1f}s")
         overtakes = sorted(
             ((self._position_change(race, name), name) for name in race.classified),
@@ -202,6 +206,58 @@ class Season:
             if change <= 0:
                 break
             print(f"    {self._driver_label(name):<25} {self._position_marker(change)} positions")
+
+    def _find_driver(self, name):
+        return next((d for d in self.drivers() if d.name == name), None)
+
+    def _print_race_report(self, race, title="Race"):
+        if not race.classified:
+            return
+        winner_name = race.classified[0]
+        winner = self._find_driver(winner_name)
+        start_pos = race.grid.index(winner_name) + 1
+
+        sentences = []
+        if start_pos == 1:
+            sentences.append(f"{self._driver_label(winner_name)} converts pole into victory for {winner.team}.")
+        else:
+            sentences.append(
+                f"{self._driver_label(winner_name)} storms from P{start_pos} to win for {winner.team}."
+            )
+
+        if len(race.classified) > 1:
+            runner_up = race.classified[1]
+            if race.laps_completed[runner_up] < race.laps_completed[winner_name]:
+                laps_down = race.laps_completed[winner_name] - race.laps_completed[runner_up]
+                margin = f"by {laps_down} lap" + ("s" if laps_down != 1 else "")
+            else:
+                margin = self._gap(race.race_times[runner_up] - race.race_times[winner_name])
+            sentences.append(f"{self._driver_label(runner_up)} finishes second, {margin} behind.")
+
+        if race.extreme_wet:
+            sentences.append("Torrential conditions forced full wet tyres for the whole field.")
+
+        if race.safety_cars:
+            label = "A safety car" if race.safety_cars == 1 else f"{race.safety_cars} safety cars"
+            sentences.append(f"{label} bunched the field and shook up the running order.")
+
+        if race.dnfs:
+            names = ", ".join(self._driver_label(name) for name in race.dnfs)
+            sentences.append(f"Retirements: {names}.")
+
+        movers = sorted(
+            ((self._position_change(race, name), name) for name in race.classified),
+            reverse=True,
+        )
+        if movers and movers[0][0] > 0:
+            change, name = movers[0]
+            sentences.append(f"{self._driver_label(name)} was the standout mover, gaining {change} places.")
+
+        if race.fastest_lap:
+            sentences.append(f"Fastest lap: {self._driver_label(race.fastest_lap)}.")
+
+        self._p(f"\n{title} report:")
+        self._p("  " + " ".join(sentences))
 
     def run_weekend(self, round_no: int, track):
         self._p(f"\n=== Round {round_no}: {track.name} ({track.country}) ===")
@@ -225,6 +281,7 @@ class Season:
             sprint_earned = sim.award_sprint_points(sprint_race, self.teams)
             if not self.quiet:
                 self._print_race(sprint_race, sprint_earned, "Sprint")
+                self._print_race_report(sprint_race, "Sprint")
 
         quali = sim.simulate_qualifying(self.teams, track, self.rng)
         if not self.quiet:
@@ -236,6 +293,7 @@ class Season:
 
         if not self.quiet:
             self._print_race(race, earned)
+            self._print_race_report(race)
 
         self.race_log.append({
             "round": round_no,

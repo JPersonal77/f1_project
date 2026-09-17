@@ -45,6 +45,24 @@ RETIREMENT_AGE_RISK = 35
 RETIREMENT_AGE_CAP = 45
 RATING_FIELDS = ("pace", "racecraft", "consistency", "wet_skill")
 
+# Real F1 shakes up the pecking order every few years when the technical
+# rules change (2009, 2014, 2017, 2022...); simulate that cadence here.
+REGULATION_CYCLE_SEASONS = 4
+CAR_DEVELOPMENT_ATTRS = (
+    "car_performance", "reliability", "aero_efficiency", "low_speed_performance",
+    "high_speed_performance", "traction", "braking", "straight_line_speed",
+)
+
+
+def _drift_car_attributes(teams, rng: random.Random, spread: float):
+    """Randomly walks each team's car-related ratings by +/- spread (std dev)."""
+    for team in teams:
+        for attr in CAR_DEVELOPMENT_ATTRS:
+            current = getattr(team, attr)
+            new_value = current + rng.gauss(0, spread)
+            setattr(team, attr, max(35, min(99, round(new_value))))
+
+
 
 def _retirement_probability(age: int) -> float:
     """Return increasing retirement risk from age 35, capped at 45."""
@@ -184,10 +202,20 @@ def _academy_candidate(team_name: str, rng: random.Random,
     return _build_academy_driver(name, profile, rng, number_pool)
 
 
-def run_offseason(teams, rng: random.Random, quiet=False) -> list:
-    """Mutates teams' driver rosters in place. Returns a list of news strings."""
+def run_offseason(teams, rng: random.Random, quiet=False, regulation_change=False) -> list:
+    """Mutates teams' driver rosters (and car competitiveness) in place.
+
+    Returns a list of news strings. A gentle year-on-year development drift is
+    always applied; every REGULATION_CYCLE_SEASONS a much bigger, less
+    predictable shift hits every team, so no team's competitive order is
+    guaranteed to hold forever over a long simulation.
+    """
     news = []
     used_numbers = {d.number for t in teams for d in t.drivers}
+
+    _drift_car_attributes(teams, rng, spread=9.0 if regulation_change else 2.0)
+    if regulation_change:
+        news.append("New technical regulations reshuffle the competitive order across the grid.")
 
     free_agents = []
     retirements = []

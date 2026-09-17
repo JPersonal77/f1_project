@@ -198,6 +198,7 @@ class RaceResult:
     dnfs: List[str]
     fastest_lap: str
     wet: bool
+    extreme_wet: bool
     grid: List[str]
     pit_stops: Dict[str, int]
     tyre_strategy: Dict[str, List[str]]
@@ -205,26 +206,42 @@ class RaceResult:
     race_times: Dict[str, float]
     laps_completed: Dict[str, int]
     fastest_lap_times: Dict[str, float]
+    safety_cars: int
+
+
+def _crash_chance(driver, wet: bool, extreme_wet: bool = False) -> float:
+    """Driver-error incident chance: aggression up, consistency down = more crashes."""
+    chance = max(0, (driver.aggression - driver.consistency)) * 0.0009
+    if wet:
+        chance += (100 - driver.wet_skill) * 0.0007
+    if extreme_wet:
+        chance += (100 - driver.wet_skill) * 0.0012
+    return chance
 
 
 def simulate_race(teams, track, grid: List[str], rng: random.Random) -> RaceResult:
     wet = rng.random() < track.wet_chance
+    # Only a fraction of wet races are heavy enough for full wet tyres over inters.
+    extreme_wet = wet and rng.random() < 0.30
     driver_lookup = {d.name: (d, t) for t in teams for d in t.drivers}
 
     dnfs = []
     scores = {}
+    perf_scores = {}
+    grid_bonuses = {}
     pit_stops = {}
     tyre_strategy = {}
     pit_lane_time = {}
     race_times = {}
     laps_completed = {}
     fastest_lap_times = {}
+    crash_incidents = []  # names of drivers involved in a crash/off, DNF or not
     base_race_time = track.laps * (65.0 + track.circuit_length_km * 7.0)
     for pos, name in enumerate(grid, start=1):
         d, t = driver_lookup[name]
 
         if wet:
-            strategy = ["INTERMEDIATE"]
+            strategy = ["WET"] if extreme_wet else ["INTERMEDIATE"]
             stops = 1
         else:
             strategy = _choose_dry_strategy(track, t, d, rng)
@@ -237,26 +254,45 @@ def simulate_race(teams, track, grid: List[str], rng: random.Random) -> RaceResu
             _session_score(d, t, wet, rng, track), track, rng
         )
 
-        # Mechanical DNF chance
-        dnf_chance = (100 - t.reliability) * 0.0028
-        # Driver-error DNF chance: aggression up, consistency down = more crashes
-        dnf_chance += max(0, (d.aggression - d.consistency)) * 0.0009
-        if wet:
-            dnf_chance += (100 - d.wet_skill) * 0.0007
+        mechanical_chance = (100 - t.reliability) * 0.0028
+        crash_chance = _crash_chance(d, wet, extreme_wet)
 
-        if rng.random() < dnf_chance:
+        roll = rng.random()
+        if roll < mechanical_chance:
             dnfs.append(name)
             laps_completed[name] = rng.randint(max(1, track.laps // 4), max(1, track.laps - 1))
             race_times[name] = laps_completed[name] * (65.0 + track.circuit_length_km * 7.0)
             continue
+        if roll < mechanical_chance + crash_chance:
+            dnfs.append(name)
+            crash_incidents.append(name)
+            laps_completed[name] = rng.randint(max(1, track.laps // 4), max(1, track.laps - 1))
+            race_times[name] = laps_completed[name] * (65.0 + track.circuit_length_km * 7.0)
+            continue
+        # A non-retiring off/spin still draws a caution without ending the race.
+        survived_incident = rng.random() < crash_chance * 0.5
+        if survived_incident:
+            crash_incidents.append(name)
 
-        perf = (_session_score(d, t, wet, rng, track) + d.racecraft * 0.20
-            - pit_lane_time[name] * 0.12)
+        pit_time_loss = pit_lane_time[name] + (rng.uniform(3, 9) if survived_incident else 0.0)
+        perf_scores[name] = (_session_score(d, t, wet, rng, track) + d.racecraft * 0.20
+            - pit_time_loss * 0.12 + rng.gauss(0, 4.0))
         # Grid position advantage: harder to overtake tracks reward qualifying more
-        grid_bonus = (len(grid) - pos) * (1.4 + track.overtaking_difficulty * 2.2)
-        # A touch of race-day chaos (strategy, safety cars, etc.)
-        chaos = rng.gauss(0, 4.0)
-        scores[name] = perf + grid_bonus + chaos
+        grid_bonuses[name] = (len(grid) - pos) * (1.4 + track.overtaking_difficulty * 2.2)
+
+    # Each crash/off is a candidate for stewards calling a safety car; danger and
+    # visibility of the circuit (proxied by its historical SC rate) decides it.
+    safety_cars = 0
+    for _ in crash_incidents:
+        if rng.random() < track.safety_car_chance:
+            safety_cars += 1
+    safety_cars = min(safety_cars, 3)
+    # Each SC bunches the pack, eroding the value built up from grid position.
+    bunching = max(0.30, 1 - 0.25 * safety_cars)
+    for name in perf_scores:
+        # Restarts add extra lottery noise on top of the usual race chaos.
+        restart_noise = rng.gauss(0, safety_cars * 2.5) if safety_cars else 0.0
+        scores[name] = perf_scores[name] + grid_bonuses[name] * bunching + restart_noise
 
     classified = sorted(scores.keys(), key=lambda n: scores[n], reverse=True)
     for position, name in enumerate(classified):
@@ -271,7 +307,8 @@ def simulate_race(teams, track, grid: List[str], rng: random.Random) -> RaceResu
         laps_completed[name] = lowest_laps_ahead
     leader_score = scores[classified[0]] if classified else 0
     for position, name in enumerate(classified):
-        gap = 0.0 if position == 0 else (classified[position - 1] and rng.uniform(0.4, 4.5))
+        # SCs close the field up, so bunching shrinks the gap between finishers.
+        gap = 0.0 if position == 0 else (classified[position - 1] and rng.uniform(0.4, 4.5) * bunching)
         if position:
             race_times[name] = race_times.get(classified[position - 1], base_race_time) + gap
         else:
@@ -283,6 +320,7 @@ def simulate_race(teams, track, grid: List[str], rng: random.Random) -> RaceResu
         dnfs=dnfs,
         fastest_lap=fastest_lap,
         wet=wet,
+        extreme_wet=extreme_wet,
         grid=grid,
         pit_stops=pit_stops,
         tyre_strategy=tyre_strategy,
@@ -290,6 +328,7 @@ def simulate_race(teams, track, grid: List[str], rng: random.Random) -> RaceResu
         race_times=race_times,
         laps_completed=laps_completed,
         fastest_lap_times=fastest_lap_times,
+        safety_cars=safety_cars,
     )
 
 

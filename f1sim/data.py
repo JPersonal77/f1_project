@@ -336,13 +336,13 @@ def build_2026_grid():
         ]),
         Team("Mercedes", "Mercedes-AMG Petronas F1 Team", car_performance=90, reliability=91, pit_crew=93, tier="front", engine="Mercedes", engine_performance=93, engine_reliability=92, drivers=[
             Driver("George Russell", 63, "GBR", pace=90, racecraft=87, consistency=88, wet_skill=86, experience=83, aggression=76, age=28, contract_years=3),
-            Driver("Kimi Antonelli", 12, "ITA", pace=85, racecraft=79, consistency=76, wet_skill=80, experience=58, aggression=78, age=20, contract_years=2),
+            Driver("Kimi Antonelli", 12, "ITA", pace=91, racecraft=85, consistency=82, wet_skill=84, experience=62, aggression=78, age=20, contract_years=2),
         ]),
-        Team("Aston Martin", "Aston Martin Aramco F1 Team", car_performance=84, reliability=85, pit_crew=86, tier="midfield", engine="Honda RBPT", engine_performance=89, engine_reliability=87, drivers=[
+        Team("Aston Martin", "Aston Martin Aramco F1 Team", car_performance=84, reliability=77, pit_crew=79, tier="midfield", engine="Honda RBPT", engine_performance=89, engine_reliability=87, drivers=[
             Driver("Fernando Alonso", 14, "ESP", pace=89, racecraft=95, consistency=90, wet_skill=92, experience=99, aggression=82, age=44, contract_years=1),
             Driver("Lance Stroll", 18, "CAN", pace=78, racecraft=72, consistency=75, wet_skill=74, experience=76, aggression=65, age=27, contract_years=3),
         ]),
-        Team("Williams", "Atlassian Williams Racing", car_performance=85, reliability=86, pit_crew=84, tier="midfield", engine="Mercedes", engine_performance=93, engine_reliability=92, drivers=[
+        Team("Williams", "Atlassian Williams Racing", car_performance=85, reliability=79, pit_crew=80, tier="midfield", engine="Mercedes", engine_performance=93, engine_reliability=92, drivers=[
             Driver("Carlos Sainz", 55, "ESP", pace=88, racecraft=86, consistency=87, wet_skill=83, experience=90, aggression=76, age=31, contract_years=2),
             Driver("Alexander Albon", 23, "THA", pace=85, racecraft=83, consistency=82, wet_skill=80, experience=81, aggression=74, age=29, contract_years=2),
         ]),
@@ -444,8 +444,39 @@ def build_2026_calendar():
             tyre_wear_rate=tyre_wear_rate,
             pit_lane_time_seconds=pit_lane_time,
             pit_stop_probability=pit_probability,
+            safety_car_chance=SAFETY_CAR_CHANCE[name],
         ))
     return tracks
+
+
+# Historical per-race probability of at least one safety car / VSC period.
+# Street circuits and tracks with tight run-off areas run notably higher.
+SAFETY_CAR_CHANCE = {
+    "Bahrain GP": 0.35,
+    "Saudi Arabian GP": 0.60,
+    "Australian GP": 0.50,
+    "Japanese GP": 0.30,
+    "Chinese GP": 0.35,
+    "Miami GP": 0.50,
+    "Emilia Romagna GP": 0.35,
+    "Monaco GP": 0.55,
+    "Canadian GP": 0.70,
+    "Spanish GP": 0.25,
+    "Austrian GP": 0.35,
+    "British GP": 0.40,
+    "Belgian GP": 0.45,
+    "Hungarian GP": 0.35,
+    "Dutch GP": 0.40,
+    "Italian GP": 0.30,
+    "Azerbaijan GP": 0.65,
+    "Singapore GP": 0.80,
+    "US GP (Austin)": 0.35,
+    "Mexico City GP": 0.35,
+    "Sao Paulo GP": 0.50,
+    "Las Vegas GP": 0.45,
+    "Qatar GP": 0.35,
+    "Abu Dhabi GP": 0.30,
+}
 
 # Track DNA is simulator metadata based on circuit characteristics. The
 # demand values are normalized from 0 (low) to 1 (high), not official ratings.

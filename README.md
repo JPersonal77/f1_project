@@ -16,6 +16,15 @@ python3 main.py --seed 42             # reproducible results
 python3 main.py --randomize           # force a fresh random result
 python3 main.py --start-year 2026 --seasons 3
 python3 main.py --round 16 --seed 42 # simulate only Round 16 (Italy)
+python3 main.py --quiet --until-champion "Kimi Antonelli"          # keep simulating seasons until this driver takes the title
+python3 main.py --quiet --until-constructor-champion "Williams"    # ...until this team wins constructors'
+python3 main.py --quiet --until-win "Lance Stroll" --max-seasons 50 # ...until this driver wins any race (capped)
+# --until-champion/--until-win also work for F2/F3 prospects not yet on the
+# grid; the run keeps going until they're promoted (or ends early if the
+# named driver retires/loses their seat before meeting the condition).
+python3 main.py --history --seasons 1000 --seed 1   # simulate many seasons fast, printing only
+                                                     # notable events (titles, streaks, records,
+                                                     # first-ever wins) + a final all-time summary
 ```
 
 No dependencies beyond the Python standard library.

@@ -137,3 +137,4 @@ class Track:
     tyre_wear_rate: float = 0.5
     pit_lane_time_seconds: float = 22.0
     pit_stop_probability: float = 0.65
+    safety_car_chance: float = 0.40  # historical probability of at least one SC/VSC
