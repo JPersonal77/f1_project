@@ -3,177 +3,107 @@
 
 import json
 import mimetypes
-import sys
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import unquote, urlsplit
 
+import services
+
 ROOT = Path(__file__).resolve().parent.parent
-FRONTEND = ROOT / "frontend"
-sys.path.insert(0, str(ROOT))
+FRONTEND_BUILD = ROOT / "frontend" / "dist"
 
-from f1sim.data import build_2026_calendar, build_2026_grid
-from f1sim.season import Season
-
-
-def _driver_data(driver):
-    return {
-        "name": driver.name,
-        "number": driver.number,
-        "nationality": driver.nationality,
-        "flag": driver.flag,
-        "team": driver.team,
-        "pace": driver.pace,
-        "overall": round(driver.overall, 1),
-    }
+MAX_BODY_BYTES = 4096
+MAX_SEASONS = 200
+MAX_HISTORY_SEASONS = 1000
+MAX_UNTIL_SEASONS = 5000
+MAX_TRIALS = 5000
+MAX_NAME_LENGTH = 60
+MIN_YEAR, MAX_YEAR = 2026, 2100
 
 
-def _standings(teams):
-    drivers = sorted(
-        (driver for team in teams for driver in team.drivers),
-        key=lambda driver: (-driver.season_points, -driver.season_wins, driver.name),
+def _int(payload, key, default, low, high, label):
+    value = payload.get(key, default)
+    if isinstance(value, bool) or not isinstance(value, int) or not low <= value <= high:
+        raise ValueError(f"{label} must be an integer between {low} and {high}")
+    return value
+
+
+def _seed(payload):
+    seed = payload.get("seed")
+    if seed is not None and (isinstance(seed, bool) or not isinstance(seed, int)):
+        raise ValueError("Seed must be an integer or null")
+    return seed
+
+
+def _year(payload):
+    return _int(payload, "year", 2026, MIN_YEAR, MAX_YEAR, "Year")
+
+
+def _start_year(payload):
+    return _int(payload, "start_year", 2026, MIN_YEAR, MAX_YEAR, "Start year")
+
+
+def _round(payload):
+    return _int(payload, "round", 1, 1, len(services.build_2026_calendar()), "Round")
+
+
+def _route_season(payload):
+    return services.simulate_season(_year(payload), _seed(payload))
+
+
+def _route_seasons(payload):
+    seasons = _int(payload, "seasons", 10, 1, MAX_SEASONS, "Seasons")
+    return services.simulate_multi(seasons, _seed(payload), _start_year(payload))
+
+
+def _route_round(payload):
+    return services.simulate_weekend(_round(payload), _seed(payload))
+
+
+def _route_predict(payload):
+    trials = _int(payload, "trials", 500, 1, MAX_TRIALS, "Trials")
+    return services.predict_round(_round(payload), trials, _seed(payload))
+
+
+def _route_history(payload):
+    seasons = _int(payload, "seasons", 100, 1, MAX_HISTORY_SEASONS, "Seasons")
+    return services.simulate_history(seasons, _seed(payload), _start_year(payload))
+
+
+def _route_until(payload):
+    condition = payload.get("condition")
+    if condition not in services.UNTIL_CONDITIONS:
+        raise ValueError("Condition must be one of: " + ", ".join(services.UNTIL_CONDITIONS))
+    target = payload.get("target")
+    if target is not None:
+        if not isinstance(target, str) or len(target) > MAX_NAME_LENGTH:
+            raise ValueError("Target must be a short text value")
+        target = target.strip() or None
+    if condition in ("champion", "constructor", "win") and not target:
+        raise ValueError("Enter a driver or team name for this condition")
+    threshold = None
+    if condition == "winners":
+        threshold = _int(payload, "threshold", 10, 1, 100, "Winner threshold")
+    max_seasons = _int(payload, "max_seasons", 1000, 1, MAX_UNTIL_SEASONS, "Max seasons")
+    return services.run_until(
+        condition, target, threshold, _seed(payload), _start_year(payload), max_seasons
     )
-    constructors = sorted(
-        teams,
-        key=lambda team: (-team.season_points, -team.season_wins, team.name),
-    )
-    return {
-        "drivers": [
-            {
-                **_driver_data(driver),
-                "points": round(driver.season_points, 1),
-                "wins": driver.season_wins,
-                "podiums": driver.season_podiums,
-                "poles": driver.season_poles,
-                "dnfs": driver.season_dnfs,
-            }
-            for driver in drivers
-        ],
-        "constructors": [
-            {
-                "name": team.name,
-                "full_name": team.full_name,
-                "points": round(team.season_points, 1),
-                "wins": team.season_wins,
-                "car_performance": team.car_performance,
-                "drivers": [driver.name for driver in team.drivers],
-            }
-            for team in constructors
-        ],
-    }
 
 
-def _race_result(race, points, driver_teams):
-    classified = [
-        {
-            "name": name,
-            "team": driver_teams[name],
-            "position": position,
-            "grid": race.grid.index(name) + 1,
-            "points": points.get(name, 0),
-            "status": "Finished",
-            "fastest_lap": name == race.fastest_lap,
-            "time": round(race.race_times.get(name, 0), 3),
-            "laps": race.laps_completed.get(name, 0),
-            "pit_stops": race.pit_stops.get(name, 0),
-            "strategy": race.tyre_strategy.get(name, []),
-        }
-        for position, name in enumerate(race.classified, start=1)
-    ]
-    retired = [
-        {
-            "name": name,
-            "team": driver_teams[name],
-            "position": None,
-            "grid": race.grid.index(name) + 1,
-            "points": points.get(name, 0),
-            "status": "DNF",
-            "fastest_lap": False,
-            "time": round(race.race_times.get(name, 0), 3),
-            "laps": race.laps_completed.get(name, 0),
-            "pit_stops": race.pit_stops.get(name, 0),
-            "strategy": race.tyre_strategy.get(name, []),
-        }
-        for name in race.dnfs
-    ]
-    return {
-        "winner": race.classified[0] if race.classified else None,
-        "fastest_lap": race.fastest_lap,
-        "wet": race.wet,
-        "extreme_wet": race.extreme_wet,
-        "safety_cars": race.safety_cars,
-        "results": classified + retired,
-    }
+POST_ROUTES = {
+    "/api/simulate": _route_season,
+    "/api/seasons": _route_seasons,
+    "/api/round": _route_round,
+    "/api/predict": _route_predict,
+    "/api/history": _route_history,
+    "/api/until": _route_until,
+}
 
-
-def simulate_season(year=2026, seed=None):
-    teams = build_2026_grid()
-    calendar = build_2026_calendar()
-    season = Season(year, teams, calendar, seed=seed, quiet=True)
-    driver_teams = {
-        driver.name: team.name
-        for team in teams
-        for driver in team.drivers
-    }
-
-    races = []
-    for round_number, track in enumerate(calendar, start=1):
-        season.run_weekend(round_number, track)
-        weekend = season.race_log[-1]
-        race = weekend["race"]
-        qualifying = weekend["quali"]
-        sprint_race = weekend["sprint_race"]
-        races.append({
-            "round": round_number,
-            "name": track.name,
-            "country": track.country,
-            "laps": track.laps,
-            "is_sprint": track.is_sprint,
-            "winner": race.classified[0] if race.classified else None,
-            "pole": qualifying.grid[0] if qualifying.grid else None,
-            "wet": race.wet,
-            "qualifying_wet": qualifying.wet,
-            "safety_cars": race.safety_cars,
-            "qualifying_grid": qualifying.grid,
-            "results": _race_result(race, weekend["points"], driver_teams),
-            "sprint": (
-                _race_result(sprint_race, weekend["sprint_points"], driver_teams)
-                if sprint_race else None
-            ),
-        })
-
-    return {
-        "year": year,
-        "seed": seed,
-        "rounds": len(calendar),
-        "standings": _standings(teams),
-        "races": races,
-    }
-
-
-def initial_data():
-    teams = build_2026_grid()
-    return {
-        "year": 2026,
-        "teams": [
-            {
-                "name": team.name,
-                "full_name": team.full_name,
-                "drivers": [_driver_data(driver) for driver in team.drivers],
-            }
-            for team in teams
-        ],
-        "calendar": [
-            {
-                "round": round_number,
-                "name": track.name,
-                "country": track.country,
-                "laps": track.laps,
-                "is_sprint": track.is_sprint,
-            }
-            for round_number, track in enumerate(build_2026_calendar(), start=1)
-        ],
-    }
+GET_ROUTES = {
+    "/api/initial": services.initial_data,
+    "/api/meta": services.meta,
+    "/api/academies": services.academies,
+}
 
 
 class SimulatorHandler(BaseHTTPRequestHandler):
@@ -193,7 +123,7 @@ class SimulatorHandler(BaseHTTPRequestHandler):
             length = int(self.headers.get("Content-Length", "0"))
         except ValueError as error:
             raise ValueError("Invalid Content-Length header") from error
-        if length < 0 or length > 4096:
+        if length < 0 or length > MAX_BODY_BYTES:
             raise ValueError("Request body must be smaller than 4 KB")
         try:
             return json.loads(self.rfile.read(length))
@@ -202,16 +132,22 @@ class SimulatorHandler(BaseHTTPRequestHandler):
 
     def do_GET(self):
         path = urlsplit(self.path).path
-        if path == "/api/initial":
-            self._send_json(200, initial_data())
+        if path in GET_ROUTES:
+            self._send_json(200, GET_ROUTES[path]())
             return
         if path.startswith("/api/"):
             self._send_json(404, {"error": "API endpoint not found"})
             return
 
         requested = unquote(path).lstrip("/") or "index.html"
-        file_path = (FRONTEND / requested).resolve()
-        if not file_path.is_relative_to(FRONTEND.resolve()) or not file_path.is_file():
+        file_path = (FRONTEND_BUILD / requested).resolve()
+        if not file_path.is_relative_to(FRONTEND_BUILD.resolve()):
+            self.send_error(404, "File not found")
+            return
+        if not file_path.is_file() and requested == "index.html":
+            self.send_error(503, "Frontend is not built. Run `cd frontend && npm run build` first.")
+            return
+        if not file_path.is_file():
             self.send_error(404, "File not found")
             return
         body = file_path.read_bytes()
@@ -223,23 +159,19 @@ class SimulatorHandler(BaseHTTPRequestHandler):
         self.wfile.write(body)
 
     def do_POST(self):
-        if urlsplit(self.path).path != "/api/simulate":
+        route = POST_ROUTES.get(urlsplit(self.path).path)
+        if route is None:
             self._send_json(404, {"error": "API endpoint not found"})
             return
         try:
             payload = self._read_json()
             if not isinstance(payload, dict):
                 raise ValueError("Request body must be a JSON object")
-            year = payload.get("year", 2026)
-            seed = payload.get("seed")
-            if isinstance(year, bool) or not isinstance(year, int) or not 2026 <= year <= 2100:
-                raise ValueError("Year must be an integer between 2026 and 2100")
-            if seed is not None and (isinstance(seed, bool) or not isinstance(seed, int)):
-                raise ValueError("Seed must be an integer or null")
+            result = route(payload)
         except ValueError as error:
             self._send_json(400, {"error": str(error)})
             return
-        self._send_json(200, simulate_season(year, seed))
+        self._send_json(200, result)
 
     def log_message(self, format_string, *args):
         print(f"{self.address_string()} - {format_string % args}")

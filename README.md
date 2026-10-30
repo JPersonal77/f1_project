@@ -35,24 +35,57 @@ python3 main.py --predict 16 --trials 2000 --seed 1 # Monte Carlo: simulate Roun
 
 No dependencies beyond the Python standard library.
 
-## Web frontend
+## React + TypeScript web frontend
 
-Run the local web app from the project root:
+Install the frontend dependencies once:
+
+```bash
+cd frontend
+npm install
+```
+
+For development, start the simulator API in one terminal and the Vite frontend
+in another:
 
 ```bash
 python3 backend/server.py
 ```
 
-Open [http://127.0.0.1:8000](http://127.0.0.1:8000) to simulate a season, browse
-the championship tables and calendar, and inspect race classifications. Enter a
-seed to reproduce a season; leave it blank for a random result.
+```bash
+cd frontend
+npm run dev
+```
+
+Open [http://127.0.0.1:5173](http://127.0.0.1:5173). Vite proxies `/api`
+requests to the Python server. For a production-style local run, build the
+frontend with `cd frontend && npm run build`, then run
+`python3 backend/server.py` from the project root and open
+[http://127.0.0.1:8000](http://127.0.0.1:8000). Enter a seed to reproduce a
+season; leave it blank for a random result.
+
+### Simulation Lab pages
+
+The sidebar's **Simulation Lab** exposes every CLI mode:
+
+| Page | CLI equivalent | API |
+| --- | --- | --- |
+| Single round | `--round R` | `POST /api/round` |
+| Predictor | `--predict R --trials N` | `POST /api/predict` |
+| Multi-season | `--seasons N` | `POST /api/seasons` |
+| Until it happens | `--until-champion`, `--until-constructor-champion`, `--until-win`, `--until-tiebreak`, `--until-winners` | `POST /api/until` |
+| History | `--history` | `POST /api/history` |
+| Academies | `--show-academies` | `GET /api/academies` |
+
+Requests are bounded (for example 200 seasons, 1000 history seasons, 5000
+trials, 5000 max seasons for "until") so the local server stays responsive.
 
 ## Project layout
 
 ```
 main.py              CLI entry point — parses args, runs the season loop
-backend/server.py    Local web server and simulation API
-frontend/            Responsive browser dashboard
+backend/server.py    Local web server and JSON API routes
+backend/services.py  Simulation services behind the API (mirror CLI modes)
+frontend/src/        React + TypeScript browser dashboard
 f1sim/
   models.py           Driver, Team, Track dataclasses + rating definitions
   data.py              2026 starting grid and 24-round calendar
