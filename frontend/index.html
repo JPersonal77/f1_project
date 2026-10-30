@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#101113">
+    <title>APEX — F1 Season Simulator</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/styles.css">
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="sidebar">
+        <a class="brand" href="/" aria-label="Apex home">
+          <span class="brand-mark">A</span>
+          <span class="brand-name">APEX<span class="brand-period">.</span></span>
+        </a>
+        <div class="side-label">RACE CONTROL</div>
+        <nav class="side-nav" aria-label="Main navigation">
+          <button class="nav-link active" data-view="overview"><span class="nav-icon">◫</span> Overview</button>
+          <button class="nav-link" data-view="calendar"><span class="nav-icon">◷</span> Race calendar</button>
+          <button class="nav-link" data-view="drivers"><span class="nav-icon">♙</span> Drivers</button>
+          <button class="nav-link" data-view="teams"><span class="nav-icon">▤</span> Constructors</button>
+        </nav>
+        <div class="side-season">
+          <div class="side-label">SEASON</div>
+          <div class="season-year" id="sidebar-year">2026</div>
+          <div class="season-sub"><span class="live-dot"></span><span id="season-status">Ready to race</span></div>
+        </div>
+        <div class="sidebar-bottom">
+          <span class="footer-stripe"></span>
+          <p>Every race tells a story.</p>
+          <span class="version-label">F1 SEASON SIMULATOR <span>·</span> 01</span>
+        </div>
+      </aside>
+
+      <main class="main-content">
+        <header class="topbar">
+          <div class="breadcrumbs">SEASON <span>/</span> <strong id="topbar-year">2026</strong></div>
+          <div class="topbar-actions">
+            <label class="seed-control" for="seed-input"><span>SEED</span><input id="seed-input" type="number" placeholder="Random" aria-label="Simulation seed"></label>
+            <button class="button button-primary" id="simulate-button"><span class="button-icon">▶</span> <span id="simulate-label">Simulate season</span></button>
+          </div>
+        </header>
+
+        <div class="page-wrap">
+          <section class="view-panel active" id="view-overview">
+            <div class="hero">
+              <div class="hero-copy">
+                <div class="eyebrow"><span class="eyebrow-line"></span> THE GRID IS SET <span class="eyebrow-year" id="hero-year">2026</span></div>
+                <h1>One season.<br><span>Twenty-four chances.</span></h1>
+                <p class="hero-description">A full championship, simulated from lights out to the final flag. Strategy, weather, reliability and a little chaos decide who takes the crown.</p>
+                <div class="hero-actions">
+                  <button class="button button-primary button-large" id="hero-simulate"><span class="button-icon">▶</span> Simulate the season</button>
+                  <span class="hero-note">11 TEAMS <i>·</i> 22 DRIVERS <i>·</i> <span id="round-count">24</span> ROUNDS</span>
+                </div>
+              </div>
+              <div class="hero-art" aria-hidden="true">
+                <div class="hero-orbit orbit-one"></div><div class="hero-orbit orbit-two"></div>
+                <div class="hero-orbit orbit-three"></div>
+                <div class="hero-car"><span class="car-wing"></span><span class="car-body"></span><span class="car-cockpit"></span><span class="car-wheel wheel-a"></span><span class="car-wheel wheel-b"></span><span class="car-wheel wheel-c"></span><span class="car-wheel wheel-d"></span></div>
+                <div class="hero-art-label">2026 <span>WORLD CHAMPIONSHIP</span></div>
+                <span class="hero-art-number">01</span>
+              </div>
+            </div>
+
+            <div class="stat-grid" id="stat-grid">
+              <article class="stat-card"><div class="stat-title">SEASON PROGRESS <span class="stat-symbol">◷</span></div><div class="stat-value" id="stat-progress">—<small> / 24</small></div><div class="stat-foot" id="stat-progress-foot">Awaiting lights out</div></article>
+              <article class="stat-card"><div class="stat-title">RACE WINNER <span class="stat-symbol">♛</span></div><div class="stat-value stat-name" id="stat-winner">—</div><div class="stat-foot" id="stat-winner-foot">The first flag is yours to wave</div></article>
+              <article class="stat-card"><div class="stat-title">CONSTRUCTOR LEADER <span class="stat-symbol">▤</span></div><div class="stat-value stat-name" id="stat-team">—</div><div class="stat-foot" id="stat-team-foot">Every point counts</div></article>
+              <article class="stat-card"><div class="stat-title">RACE WINNERS <span class="stat-symbol">✦</span></div><div class="stat-value" id="stat-wins">—</div><div class="stat-foot" id="stat-wins-foot">How wide will the fight be?</div></article>
+            </div>
+
+            <div class="section-heading">
+              <div><div class="eyebrow">THE CHAMPIONSHIP</div><h2>Season at a glance</h2></div>
+              <button class="text-button" data-go="calendar">Full calendar <span>↗</span></button>
+            </div>
+
+            <div class="content-grid">
+              <article class="panel standings-panel">
+                <div class="panel-heading"><div><h3>Drivers' standings</h3><span class="panel-subtitle">A battle measured in points</span></div><button class="round-link" data-go="drivers">ALL DRIVERS ↗</button></div>
+                <div class="table-wrap">
+                  <table><thead><tr><th>POS</th><th>DRIVER</th><th>TEAM</th><th>W</th><th class="align-right">PTS</th></tr></thead><tbody id="driver-standings"></tbody></table>
+                </div>
+                <div class="empty-state" id="drivers-empty"><span class="empty-flag">🏁</span><strong>Waiting for the first lap</strong><span>Run a season to see the championship take shape.</span></div>
+              </article>
+              <article class="panel constructor-panel">
+                <div class="panel-heading"><div><h3>Constructors</h3><span class="panel-subtitle">The fight behind the drivers</span></div><button class="round-link" data-go="teams">FULL TABLE ↗</button></div>
+                <div class="constructor-list" id="constructor-list"></div>
+                <div class="empty-state compact-empty" id="constructors-empty"><strong>The team battle starts here</strong><span>11 constructors on the grid</span></div>
+              </article>
+            </div>
+
+            <div class="section-heading calendar-heading">
+              <div><div class="eyebrow">THE ROAD AHEAD</div><h2>Race calendar</h2></div>
+              <button class="text-button" data-go="calendar">Explore all rounds <span>↗</span></button>
+            </div>
+            <div class="calendar-strip" id="calendar-strip"></div>
+          </section>
+
+          <section class="view-panel" id="view-calendar">
+            <div class="section-heading page-heading"><div><div class="eyebrow">ROUND BY ROUND</div><h1>Race calendar</h1><p class="section-description">Twenty-four circuits. One world championship.</p></div></div>
+            <div class="calendar-grid" id="calendar-grid"></div>
+          </section>
+
+          <section class="view-panel" id="view-drivers">
+            <div class="section-heading page-heading"><div><div class="eyebrow">THE GRID</div><h1>Drivers' championship</h1><p class="section-description">Every driver, every point, every position gained.</p></div></div>
+            <article class="panel full-table-panel">
+              <div class="panel-heading"><div><h3>Driver standings</h3><span class="panel-subtitle" id="driver-table-subtitle">22 drivers competing</span></div></div>
+              <div class="table-wrap"><table><thead><tr><th>POS</th><th>DRIVER</th><th>TEAM</th><th>W</th><th>POD</th><th>POLE</th><th>DNF</th><th class="align-right">PTS</th></tr></thead><tbody id="driver-table"></tbody></table></div>
+              <div class="empty-state" id="driver-table-empty"><span class="empty-flag">🏎</span><strong>Championship standings will appear here</strong><span>Simulate the season to see how the grid stacks up.</span></div>
+            </article>
+          </section>
+
+          <section class="view-panel" id="view-teams">
+            <div class="section-heading page-heading"><div><div class="eyebrow">TEAM PERFORMANCE</div><h1>Constructors</h1><p class="section-description">The points that bring a team to the top.</p></div></div>
+            <article class="panel full-table-panel">
+              <div class="panel-heading"><div><h3>Constructors' standings</h3><span class="panel-subtitle">11 teams on the grid</span></div></div>
+              <div class="table-wrap"><table><thead><tr><th>POS</th><th>TEAM</th><th>DRIVERS</th><th>W</th><th class="align-right">PTS</th></tr></thead><tbody id="team-table"></tbody></table></div>
+              <div class="empty-state" id="team-table-empty"><strong>Every team starts on zero</strong><span>Simulate a season to see who builds the best campaign.</span></div>
+            </article>
+          </section>
+
+          <section class="view-panel" id="view-race">
+            <div class="race-detail-top"><button class="back-button" data-go="calendar">← Back to calendar</button><span class="round-chip" id="race-round"></span></div>
+            <div class="race-hero"><div><div class="eyebrow">RACE REPORT</div><h1 id="race-title"></h1><p class="section-description" id="race-subtitle"></p></div><div class="race-winner-block"><span>RACE WINNER</span><strong id="race-winner"></strong></div></div>
+            <div class="race-highlights" id="race-highlights"></div>
+            <article class="panel full-table-panel">
+              <div class="panel-heading"><div><h3>Grand Prix classification</h3><span class="panel-subtitle">Starting grid, race result and points</span></div><div class="segmented" id="race-tabs"><button class="selected" data-race-type="race">Grand Prix</button><button data-race-type="sprint" id="sprint-tab" hidden>Sprint</button></div></div>
+              <div class="table-wrap"><table><thead><tr><th>POS</th><th>DRIVER</th><th>TEAM</th><th>GRID</th><th>STOPS</th><th>STATUS</th><th class="align-right">PTS</th></tr></thead><tbody id="race-results-table"></tbody></table></div>
+            </article>
+          </section>
+          <div class="notice" id="notice" role="status" aria-live="polite"></div>
+        </div>
+      </main>
+    </div>
+    <script src="/app.js" defer></script>
+  </body>
+</html>

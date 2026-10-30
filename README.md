@@ -19,7 +19,7 @@ python3 main.py --round 16 --seed 42 # simulate only Round 16 (Italy)
 python3 main.py --quiet --until-champion "Kimi Antonelli"          # keep simulating seasons until this driver takes the title
 python3 main.py --quiet --until-constructor-champion "Williams"    # ...until this team wins constructors'
 python3 main.py --quiet --until-win "Lance Stroll" --max-seasons 50 # ...until this driver wins any race (capped)
-python3 main.py --quiet --until-tiebreak --max-seasons 300          # ...until the title is decided on countback (points tie)
+python3 main.py --quiet --until-winners 10 --max-seasons 1000000 - seed 43424294294245532532423          # ...until the title is decided on countback (points tie)
 python3 main.py --quiet --until-winners 8 --max-seasons 100          # ...until a season has more than 8 different race winners
 # --until-champion/--until-win also work for F2/F3 prospects not yet on the
 # grid; the run keeps going until they're promoted (or ends early if the
@@ -35,10 +35,24 @@ python3 main.py --predict 16 --trials 2000 --seed 1 # Monte Carlo: simulate Roun
 
 No dependencies beyond the Python standard library.
 
+## Web frontend
+
+Run the local web app from the project root:
+
+```bash
+python3 backend/server.py
+```
+
+Open [http://127.0.0.1:8000](http://127.0.0.1:8000) to simulate a season, browse
+the championship tables and calendar, and inspect race classifications. Enter a
+seed to reproduce a season; leave it blank for a random result.
+
 ## Project layout
 
 ```
 main.py              CLI entry point — parses args, runs the season loop
+backend/server.py    Local web server and simulation API
+frontend/            Responsive browser dashboard
 f1sim/
   models.py           Driver, Team, Track dataclasses + rating definitions
   data.py              2026 starting grid and 24-round calendar
